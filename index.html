@@ -211,7 +211,7 @@
         .danger{color:var(--danger)} 
         .empty{color:var(--muted);text-align:center;padding:24px} 
 
-        /* --- New/Modified Styles --- */
+        /* --- Loss/Warning Styles --- */
 
         /* Loss/Warning Row Highlight */
         .loss-row td {
@@ -221,12 +221,14 @@
             color: var(--danger);
             font-weight: bold;
         }
-
-        /* Profit Margin in Game Editor */
-        .game-margin-input {
-            width: calc(100% - 70px) !important; 
-            display: inline-block;
-            margin-right: 8px;
+        
+        /* Custom Price Highlight */
+        .custom-price-row td {
+             background: color-mix(in srgb, var(--accent) 5%, transparent);
+        }
+        .custom-price-text {
+            color: var(--warning);
+            font-weight: bold;
         }
 
         /* Settings and Summary */
@@ -356,6 +358,59 @@
             background: var(--danger);
             color: var(--panel); 
         }
+        
+        /* Toggle Switch Styling (Custom) */
+        .toggle-switch {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-switch input[type="checkbox"] {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-switch label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 0; /* Override label.small margin */
+        }
+
+        .toggle-slider {
+            width: 40px;
+            height: 20px;
+            background-color: var(--muted);
+            border-radius: 20px;
+            transition: background-color 0.3s;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .toggle-slider:before {
+            content: "";
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--panel);
+            border-radius: 50%;
+            transition: transform 0.3s, background-color 0.3s;
+        }
+
+        .toggle-switch input:checked + label .toggle-slider {
+            background-color: var(--accent);
+        }
+
+        .toggle-switch input:checked + label .toggle-slider:before {
+            transform: translateX(20px);
+        }
 
 
         /* MOBILE STYLES */
@@ -380,7 +435,8 @@
                 overflow-x: auto;
             }
             table {
-                min-width: 700px; /* Adjusted for new column */
+                /* Increased min-width to accommodate new 'Profit' column */
+                min-width: 700px; 
             }
 
             .quick-add {
@@ -478,16 +534,8 @@
             <label class="small">Game Name</label>
             <input type="text" id="gameNameInput" readonly disabled />
             
-            <div style="margin-top: 10px;">
-                <label class="small">Profit Margin (%)</label> 
-                <input type="number" id="gameMarginInput" class="game-margin-input" min="0" step="0.1" disabled /> 
-                <button class="btn small" id="editMarginBtn" style="color:var(--accent);">Edit</button>
-            </div>
-            
-            <div style="margin-top: 10px;">
-                <label class="small">Description / Note</label>
-                <textarea id="gameDescInput" rows="2" readonly disabled></textarea>
-            </div>
+            <label class="small">Description / Note</label>
+            <textarea id="gameDescInput" rows="2" readonly disabled></textarea>
         </div>
         <button class="btn" id="addGameBtn" style="color:var(--accent); width: 100%; margin-top: 10px;">+ Create New Game</button>
     </div>
@@ -501,12 +549,11 @@
             <div>Categories: <strong id="summaryCategories">0</strong></div>
             <div>Products: <strong id="summaryProducts">0</strong></div>
         </div>
-        
-        <div class="controls" style="margin-bottom:12px;">
-            <button class="btn" id="undoBtn" disabled style="background:var(--glass); color:var(--muted);">&#x21BA; Undo</button>
-            <button class="btn" id="redoBtn" disabled style="background:var(--glass); color:var(--muted);">&#x21BB; Redo</button>
-        </div>
 
+        <div class="settings-margin"> 
+            <label class="small">Profit Margin (%)</label> 
+            <input type="number" id="marginInput" min="0" step="0.1" /> 
+        </div> 
         <div style="margin-top:10px"> 
             <label class="small">Currency Symbol</label> 
             <input type="text" id="currencyInput" class="currency-input" maxlength="10" /> 
@@ -562,8 +609,26 @@
         <input type="text" id="modalNameInput" />
         
         <div style="margin-top: 15px;">
-            <label class="small">Original Price (<span id="modalCurrencySymbol">Ks</span>)</label>
+            <label class="small">Original Price (<span id="modalCurrencySymbol1">Ks</span>)</label>
             <input type="number" id="modalPriceInput" min="0" step="1" />
+        </div>
+        
+        <div class="toggle-switch">
+            <input type="checkbox" id="modalCustomPriceToggle" />
+            <label for="modalCustomPriceToggle" class="small">
+                <span class="toggle-slider"></span>
+                <span>Use **Custom** Sale Price (Override Margin)</span>
+            </label>
+        </div>
+
+        <div id="modalCustomPriceInputArea" style="margin-top: 15px; display:none;">
+             <label class="small">Custom Sale Price (<span id="modalCurrencySymbol2">Ks</span>)</label>
+             <input type="number" id="modalCustomPriceInput" min="0" step="1" />
+        </div>
+        
+        <div style="margin-top: 15px; border-top: 1px dashed var(--table-divider); padding-top: 10px;">
+            <label class="small">Calculated Sale Price (for reference, using margin):</label>
+            <strong id="modalCalculatedSalePrice" style="color:var(--accent);"></strong>
         </div>
 
         <div class="modal-footer">
@@ -604,11 +669,6 @@
         <input type="text" id="gameModalNameInput" />
         
         <div style="margin-top: 15px;">
-             <label class="small">Profit Margin (%)</label>
-            <input type="number" id="gameModalMarginInput" min="0" step="0.1" />
-        </div>
-        
-        <div style="margin-top: 15px;">
             <label class="small">Description / Note</label>
             <textarea id="gameModalDescInput" rows="3" placeholder="e.g., ID/Server top-up method"></textarea>
         </div>
@@ -623,17 +683,12 @@
 
 <script>
     // Single-file SPA logic
-    const LS_KEY = 'reseller_price_manager_v2'; // Updated key for new structure
+    const LS_KEY = 'reseller_price_manager_v1';
     let state = loadState();
     let selectedGameId = state.selectedGameId || null;
     let selectedCategoryId = state.selectedCategoryId || null;
     let editingProductId = null; 
     let editingGameId = null; 
-
-    // --- Undo/Redo System Variables ---
-    let history = state.history || [];
-    let historyIndex = state.historyIndex || 0;
-    const MAX_HISTORY = 20;
 
     // Custom Modal Callbacks
     let currentPromptCallback = null;
@@ -644,14 +699,13 @@
     const gamesBar = document.getElementById('gamesBar');
     const gameNameInput = document.getElementById('gameNameInput');
     const gameDescInput = document.getElementById('gameDescInput');
-    const gameMarginInput = document.getElementById('gameMarginInput');
-    const editMarginBtn = document.getElementById('editMarginBtn');
     const addGameBtn = document.getElementById('addGameBtn');
     const categoriesBar = document.getElementById('categoriesBar');
     const addCategoryBtn = document.getElementById('addCategoryBtn');
     const productsTableBody = document.getElementById('productsTableBody');
     const emptyProducts = document.getElementById('emptyProducts');
     const centerTitle = document.getElementById('centerTitle');
+    const marginInput = document.getElementById('marginInput');
     const currencyInput = document.getElementById('currencyInput');
     const copyPreview = document.getElementById('copyPreview');
     const copyBtn = document.getElementById('copyBtn');
@@ -662,8 +716,6 @@
     const modeToggleBtn = document.getElementById('modeToggleBtn');
     const gameDetailsPanel = document.getElementById('gameDetailsPanel');
     const gameEditorInstruction = document.getElementById('gameEditorInstruction');
-    const undoBtn = document.getElementById('undoBtn');
-    const redoBtn = document.getElementById('redoBtn');
     
     // Settings Refs
     const roundingCurrencySuffix = document.getElementById('roundingCurrencySuffix'); 
@@ -681,7 +733,12 @@
     const modalProductNameTitle = document.getElementById('modalProductNameTitle');
     const modalNameInput = document.getElementById('modalNameInput');
     const modalPriceInput = document.getElementById('modalPriceInput');
-    const modalCurrencySymbol = document.getElementById('modalCurrencySymbol');
+    const modalCurrencySymbol1 = document.getElementById('modalCurrencySymbol1');
+    const modalCurrencySymbol2 = document.getElementById('modalCurrencySymbol2'); // NEW
+    const modalCalculatedSalePrice = document.getElementById('modalCalculatedSalePrice'); // NEW
+    const modalCustomPriceToggle = document.getElementById('modalCustomPriceToggle'); // NEW
+    const modalCustomPriceInputArea = document.getElementById('modalCustomPriceInputArea'); // NEW
+    const modalCustomPriceInput = document.getElementById('modalCustomPriceInput'); // NEW
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalCancelBtn = document.getElementById('modalCancelBtn');
     
@@ -704,7 +761,6 @@
     const gameEditorModal = document.getElementById('gameEditorModal');
     const gameModalTitle = document.getElementById('gameModalTitle');
     const gameModalNameInput = document.getElementById('gameModalNameInput');
-    const gameModalMarginInput = document.getElementById('gameModalMarginInput');
     const gameModalDescInput = document.getElementById('gameModalDescInput');
     const gameModalSaveBtn = document.getElementById('gameModalSaveBtn');
     const gameModalCancelBtn = document.getElementById('gameModalCancelBtn');
@@ -712,18 +768,22 @@
 
     // Initialize UI with saved settings
     function init() {
-        // Migration check for old state (moved margin from global to game)
-        if (state.margin && state.games.length > 0) {
-             state.games.forEach(g => {
-                if (typeof g.margin === 'undefined') g.margin = state.margin;
-             });
-             delete state.margin; // Remove old global margin
-        }
-
         if (!state.games) state.games = [];
+        if (typeof state.margin === 'undefined') state.margin = 15;
         if (!state.rounding) state.rounding = 'none';
         if (!state.currency) state.currency = 'Ks';
         if (!state.theme) state.theme = 'dark'; 
+
+        // Migration step: ensure all products have new properties
+        state.games.forEach(g => {
+            g.categories.forEach(c => {
+                c.products.forEach(p => {
+                    if (typeof p.useCustomPrice === 'undefined') p.useCustomPrice = false;
+                    if (typeof p.customSalePrice === 'undefined') p.customSalePrice = 0;
+                });
+            });
+        });
+
 
         if (selectedGameId && !findGame(selectedGameId)) {
             selectedGameId = state.games.length ? state.games[0].id : null;
@@ -733,21 +793,29 @@
             const g = findGame(selectedGameId);
             selectedCategoryId = g && g.categories.length ? g.categories[0].id : null;
         }
+        // Fallback for no selected game but games exist
         if (!selectedGameId && state.games.length) {
             selectedGameId = state.games[0].id;
-        }
-        
-        if (history.length === 0) {
-            // Initialize history with current state if empty
-            history.push(deepClone(getPersistenceState()));
-            historyIndex = 0;
+            // Also select first category if it exists
+            const g = findGame(selectedGameId);
+            selectedCategoryId = g && g.categories.length ? g.categories[0].id : null;
         }
 
 
         applyTheme(state.theme); 
+        hideAllModals(); 
         renderAll();
         attachListeners();
     }
+
+    // Function to hide all modals
+    function hideAllModals() {
+        productEditModal.style.display = 'none';
+        promptModal.style.display = 'none';
+        actionModal.style.display = 'none';
+        gameEditorModal.style.display = 'none';
+    }
+
 
     // --- Theme Logic ---
 
@@ -792,20 +860,13 @@
 
 
     function attachListeners() {
-        // --- Utility Actions ---
+        // --- Theme Toggle ---
         modeToggleBtn.onclick = toggleTheme;
-        undoBtn.onclick = undo;
-        redoBtn.onclick = redo;
-
 
         // --- Game Actions ---
         addGameBtn.onclick = () => {
              openGameEditorModal(null);
         };
-        editMarginBtn.onclick = () => {
-             openGameEditorModal(selectedGameId);
-        };
-
 
         // --- Game Editor Modal Handlers ---
         gameModalCancelBtn.onclick = () => {
@@ -816,20 +877,16 @@
         gameModalSaveBtn.onclick = () => {
             const name = gameModalNameInput.value.trim();
             const desc = gameModalDescInput.value;
-            const margin = Number(gameModalMarginInput.value);
 
-            if (!name) return showAction('Error', 'Game Name is required. Please enter a name.', 'Close', () => {}, false);
-            if (!isFinite(margin) || margin < 0) return showAction('Error', 'Invalid margin entered.', 'Close', () => {}, false);
-
+            if (!name) return showAction('Error', 'Game Name is required. Please enter a name.', 'Close', () => {actionModal.style.display = 'none';}, false);
 
             if (editingGameId) {
                 const g = findGame(editingGameId);
                 if (!g) return;
                 g.name = name;
                 g.desc = desc;
-                g.margin = margin;
             } else {
-                const g = { id: uid(), name, desc, margin, categories: [] };
+                const g = { id: uid(), name, desc, categories: [] };
                 state.games.push(g);
                 selectedGameId = g.id;
                 selectedCategoryId = null;
@@ -837,13 +894,13 @@
             
             gameEditorModal.style.display = 'none';
             editingGameId = null;
-            saveAndRender(true); // Save state to history
+            saveAndRender();
         };
 
 
         // --- Category Actions ---
         addCategoryBtn.onclick = () => {
-            if (!selectedGameId) return showAction('Error', 'Please select a game first before adding a category.', 'Close', () => {}, false);
+            if (!selectedGameId) return showAction('Error', 'Please select a game first before adding a category.', 'Close', () => {actionModal.style.display = 'none';}, false);
             
             showPrompt(
                 'New Category', 
@@ -855,24 +912,37 @@
                         const c = { id: uid(), name, products: [] };
                         g.categories.push(c);
                         selectedCategoryId = c.id; 
-                        saveAndRender(true); // Save state to history
+                        saveAndRender();
                     }
+                    promptModal.style.display = 'none'; // Hide modal after callback
                 }
             );
         };
 
         // --- Product Quick Add Actions ---
         quickAddBtn.onclick = () => {
-             if (!selectedGameId) return showAction('Error', 'Select a game first.', 'Close', () => {}, false);
-             if (!selectedCategoryId) return showAction('Error', 'Select a category first.', 'Close', () => {}, false);
+             if (!selectedGameId) return showAction('Error', 'Select a game first.', 'Close', () => {actionModal.style.display = 'none';}, false);
+             if (!selectedCategoryId) return showAction('Error', 'Select a category first.', 'Close', () => {actionModal.style.display = 'none';}, false);
              
              const name = quickName.value.trim();
-             const price = Number(quickPrice.value);
+             const originalPrice = Number(quickPrice.value);
              
-             if (!name) return showAction('Error', 'Product name is required.', 'Close', () => {}, false);
-             if (!isFinite(price) || price <= 0) return showAction('Error', 'Invalid original price.', 'Close', () => {}, false);
+             if (!name) return showAction('Error', 'Product name is required.', 'Close', () => {actionModal.style.display = 'none';}, false);
+             if (!isFinite(originalPrice) || originalPrice <= 0) return showAction('Error', 'Invalid original price.', 'Close', () => {actionModal.style.display = 'none';}, false);
 
-             const p = { id: uid(), name, price };
+             // IMPORTANT: Calculate the sale price for the quick add preview using margin (no custom price here)
+             const salePrice = calculateSale(originalPrice, {useCustomPrice: false}); 
+
+             // Loss check for Quick Add
+             if (salePrice < originalPrice) {
+                 return showAction('Loss Alert!', 
+                    `The calculated sale price (${formatKs(salePrice)}) is lower than the original price (${formatKs(originalPrice)}), resulting in a loss of ${formatKs(salePrice - originalPrice)}. Adjust your profit margin or original price.`, 
+                    'Close', 
+                    () => {actionModal.style.display = 'none';}, false); 
+             }
+
+             // Add new product with default custom price settings
+             const p = { id: uid(), name, price: originalPrice, useCustomPrice: false, customSalePrice: 0 };
              const cat = findCategory(selectedGameId, selectedCategoryId);
              cat.products.push(p);
 
@@ -880,36 +950,53 @@
              quickPrice.value = '';
              quickSaleView.innerText = formatKs(0);
              quickName.focus();
-             saveAndRender(true); // Save state to history
+             saveAndRender();
         };
 
         quickPrice.oninput = (e) => {
             const price = Number(e.target.value);
             if (isFinite(price) && price > 0) {
-                quickSaleView.innerText = formatKs(calculateSale(price, selectedGameId));
+                // IMPORTANT: Calculate using margin for quick add preview
+                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
             } else {
                 quickSaleView.innerText = formatKs(0);
             }
         };
 
 
-        // --- Global Settings Actions ---
+        // --- Settings Actions ---
+        marginInput.oninput = (e) => {
+            state.margin = Number(e.target.value) || 0;
+            saveState();
+            renderProducts();
+            renderCopyPreview();
+            const price = Number(quickPrice.value);
+            if (isFinite(price) && price > 0) {
+                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false})); // Quick add preview only uses margin
+            }
+        };
+
         currencyInput.oninput = (e) => {
             state.currency = e.target.value.trim().toUpperCase() || 'KS';
             // Update all currency display elements
             quickCurrencySymbol1.innerText = state.currency;
-            modalCurrencySymbol.innerText = state.currency;
+            modalCurrencySymbol1.innerText = state.currency;
+            modalCurrencySymbol2.innerText = state.currency;
             if (roundingCurrencySuffix) {
                  roundingCurrencySuffix.innerText = state.currency; 
             }
             
-            saveAndRender(true); // Save state to history
+            saveState();
+            renderProducts();
+            renderCopyPreview();
         };
 
         // Listener for the radio button group (handles the rounding state)
         document.querySelectorAll('input[name="rounding"]').forEach(r => r.onchange = (e) => {
             state.rounding = e.target.value;
-            saveAndRender(true); // Save state to history
+            saveState();
+            renderProducts();
+            renderCopyPreview();
         });
 
         // --- Modal Actions (Generic Handlers) ---
@@ -940,22 +1027,57 @@
             editingProductId = null;
         };
         
+        // NEW: Live update of calculated sale price when original price changes
+        modalPriceInput.oninput = () => {
+            const price = Number(modalPriceInput.value);
+            if (isFinite(price) && price > 0) {
+                 // Always show margin calculation here for reference
+                modalCalculatedSalePrice.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
+            } else {
+                modalCalculatedSalePrice.innerText = formatKs(0);
+            }
+        };
+        
+        // NEW: Custom price toggle handler
+        modalCustomPriceToggle.onchange = (e) => {
+            modalCustomPriceInputArea.style.display = e.target.checked ? 'block' : 'none';
+            if (e.target.checked) {
+                 modalCustomPriceInput.focus();
+            }
+        };
+        
         modalSaveBtn.onclick = () => {
             const cat = findCategory(selectedGameId, selectedCategoryId);
             const prod = cat.products.find(x => x.id === editingProductId);
 
             const newName = modalNameInput.value.trim();
             const newPrice = Number(modalPriceInput.value);
+            const useCustom = modalCustomPriceToggle.checked;
+            const customSale = Number(modalCustomPriceInput.value);
+            
+            // Determine the price to validate against
+            const finalSalePrice = useCustom ? customSale : calculateSale(newPrice, {useCustomPrice: false});
 
-            if (!newName) return showAction('Error', 'Product name cannot be empty.', 'Close', () => {}, false);
-            if (!isFinite(newPrice) || newPrice < 0) return showAction('Error', 'Invalid price entered.', 'Close', () => {}, false);
+            if (!newName) return showAction('Error', 'Product name cannot be empty.', 'Close', () => {actionModal.style.display = 'none';}, false);
+            if (!isFinite(newPrice) || newPrice < 0) return showAction('Error', 'Invalid original price entered.', 'Close', () => {actionModal.style.display = 'none';}, false);
+            if (useCustom && (!isFinite(customSale) || customSale < 0)) return showAction('Error', 'Invalid custom sale price entered.', 'Close', () => {actionModal.style.display = 'none';}, false);
+            
+            // Loss check for Edit Modal (uses finalSalePrice)
+            if (finalSalePrice < newPrice) {
+                 return showAction('Loss Alert!', 
+                    `The final sale price (${formatKs(finalSalePrice)}) is lower than the new original price (${formatKs(newPrice)}), resulting in a loss of ${formatKs(finalSalePrice - newPrice)}. Adjust your price before saving.`, 
+                    'Close', 
+                    () => {actionModal.style.display = 'none';}, false);
+            }
 
             prod.name = newName;
             prod.price = newPrice;
+            prod.useCustomPrice = useCustom;
+            prod.customSalePrice = useCustom ? customSale : 0; // Only save custom price if toggle is on
             
             productEditModal.style.display = 'none';
             editingProductId = null;
-            saveAndRender(true); // Save state to history
+            saveAndRender();
         };
 
 
@@ -966,14 +1088,12 @@
                 copyBtn.innerText = 'Copied!';
                 setTimeout(() => copyBtn.innerText = 'Copy to Clipboard', 1200);
             } catch (err) {
-                showAction('Copy Failed', 'Could not copy to clipboard. Please copy manually from the preview box.', 'OK', () => {}, false);
+                showAction('Copy Failed', 'Could not copy to clipboard. Please copy manually from the preview box.', 'OK', () => {actionModal.style.display = 'none';}, false);
             }
         };
 
         exportJsonBtn.onclick = () => {
-            // Use the persistence state for export to include selected IDs, history, etc.
-            const exportState = getPersistenceState(); 
-            const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -999,28 +1119,28 @@
                         throw new Error("Invalid file structure. Must contain a 'games' array.");
                     }
                     
-                    // Restore global state properties
-                    state.games = importedState.games || [];
-                    state.currency = importedState.currency || 'Ks';
-                    state.rounding = importedState.rounding || 'none';
-                    state.theme = importedState.theme || 'dark';
-                    
-                    // Restore UI selection
-                    selectedGameId = importedState.selectedGameId || (state.games.length ? state.games[0].id : null);
-                    selectedCategoryId = importedState.selectedCategoryId || null;
-                    
-                    // Clear and reset history for imported state
-                    history = [deepClone(getPersistenceState())];
-                    historyIndex = 0;
+                    state = importedState;
+                    // Run migration on imported data to ensure compatibility
+                    state.games.forEach(g => {
+                        g.categories.forEach(c => {
+                            c.products.forEach(p => {
+                                if (typeof p.useCustomPrice === 'undefined') p.useCustomPrice = false;
+                                if (typeof p.customSalePrice === 'undefined') p.customSalePrice = 0;
+                            });
+                        });
+                    });
 
+                    selectedGameId = state.games.length ? state.games[0].id : null;
+                    selectedCategoryId = null;
 
-                    showAction('Import Successful', 'Data imported successfully! Reloading application.', 'OK', () => {saveAndRender()}, false);
+                    showAction('Import Successful', 'Data imported successfully! Reloading application.', 'OK', (confirmed) => {
+                        actionModal.style.display = 'none';
+                        saveAndRender();
+                    }, false);
 
                 } catch (error) {
-                    showAction('Import Failed', `Failed to import file: ${error.message}`, 'Close', () => {}, false);
+                    showAction('Import Failed', `Failed to import file: ${error.message}`, 'Close', (confirmed) => {actionModal.style.display = 'none';}, false);
                 }
-                // Clear the file input
-                e.target.value = '';
             };
             reader.readAsText(file);
         };
@@ -1030,14 +1150,12 @@
     function openGameEditorModal(gameId) {
         editingGameId = gameId;
         const isNew = !gameId;
-        // Use a default margin of 15% for new games
-        const g = isNew ? { name: '', desc: '', margin: 15 } : findGame(gameId);
+        const g = isNew ? { name: '', desc: '' } : findGame(gameId);
 
-        if (!g && !isNew) return showAction('Error', 'Game not found.', 'Close', () => {}, false);
+        if (!g && !isNew) return showAction('Error', 'Game not found.', 'Close', () => {actionModal.style.display = 'none';}, false);
 
         gameModalTitle.innerText = isNew ? 'Create New Game' : `Edit: ${g.name}`;
         gameModalNameInput.value = g.name;
-        gameModalMarginInput.value = g.margin;
         gameModalDescInput.value = g.desc;
         gameModalSaveBtn.innerText = isNew ? 'Create Game' : 'Save Changes';
         
@@ -1051,14 +1169,26 @@
         const cat = findCategory(selectedGameId, selectedCategoryId);
         const prod = cat.products.find(x => x.id === productId);
 
-        if (!prod) return showAction('Error', 'Product not found.', 'Close', () => {}, false);
+        if (!prod) return showAction('Error', 'Product not found.', 'Close', () => {actionModal.style.display = 'none';}, false);
 
         editingProductId = productId;
         
         modalProductNameTitle.innerText = prod.name;
         modalNameInput.value = prod.name;
         modalPriceInput.value = prod.price;
-        modalCurrencySymbol.innerText = state.currency;
+        
+        // NEW: Custom Price Setup
+        modalCustomPriceToggle.checked = prod.useCustomPrice;
+        modalCustomPriceInput.value = prod.customSalePrice > 0 ? prod.customSalePrice : '';
+        modalCustomPriceInputArea.style.display = prod.useCustomPrice ? 'block' : 'none';
+
+        // Set currency symbols
+        modalCurrencySymbol1.innerText = state.currency;
+        modalCurrencySymbol2.innerText = state.currency;
+        
+        // Calculate and display the margin-based sale price for reference
+        const calculatedSale = calculateSale(prod.price, {useCustomPrice: false});
+        modalCalculatedSalePrice.innerText = formatKs(calculatedSale);
 
         productEditModal.style.display = 'flex';
         modalNameInput.focus();
@@ -1076,15 +1206,8 @@
         renderProducts();
         renderCopyPreview();
         renderSummary(); 
-        updateUndoRedoButtons();
-        // Note: saveState() is now usually called by saveAndRender(saveToHistory)
+        saveState();
     }
-    
-    function updateUndoRedoButtons() {
-        undoBtn.disabled = historyIndex <= 0;
-        redoBtn.disabled = historyIndex >= history.length - 1;
-    }
-
 
     function renderWelcomeMessage() {
         welcomeMessage.style.display = state.games.length > 0 ? 'none' : 'block';
@@ -1114,7 +1237,6 @@
             gameEditorInstruction.style.display = 'none';
             gameNameInput.value = g.name;
             gameDescInput.value = g.desc;
-            gameMarginInput.value = g.margin;
         } else {
             gameDetailsPanel.style.display = 'none';
             gameEditorInstruction.style.display = 'block';
@@ -1173,7 +1295,7 @@
                                 state.games = state.games.filter(x => x.id !== g.id);
                                 selectedGameId = state.games.length ? state.games[0].id : null;
                                 selectedCategoryId = null;
-                                saveAndRender(true); // Save state to history
+                                saveAndRender();
                             }
                         }
                     );
@@ -1191,7 +1313,7 @@
         addCategoryBtn.disabled = !selectedGameId;
         quickAddBar.style.display = selectedCategoryId ? 'grid' : 'none'; 
         
-        centerTitle.innerText = g ? `Categories & Products — ${g.name} (${g.margin}%)` : 'Categories & Products';
+        centerTitle.innerText = g ? `Categories & Products — ${g.name}` : 'Categories & Products';
         categoriesBar.innerHTML = '';
 
         if (!g) {
@@ -1246,8 +1368,9 @@
                         (newName) => {
                             if (newName) {
                                 c.name = newName;
-                                saveAndRender(true); // Save state to history
+                                saveAndRender();
                             }
+                            promptModal.style.display = 'none'; // Hide modal after callback
                         }
                     );
                 };
@@ -1268,7 +1391,7 @@
                             if (confirmed) {
                                 g.categories = g.categories.filter(x => x.id !== c.id);
                                 if (selectedCategoryId === c.id) selectedCategoryId = g.categories[0] ? g.categories[0].id : null;
-                                saveAndRender(true); // Save state to history
+                                saveAndRender();
                             }
                         }
                     );
@@ -1301,22 +1424,32 @@
         cat.products.forEach(p => {
             const tr = document.createElement('tr');
             const original = Number(p.price) || 0;
-            const sale = calculateSale(original, selectedGameId);
-            const profit = sale - original;
-            const isLoss = profit < 0;
+            const sale = calculateSale(original, p);
+            const profit = sale - original; 
+            const isLoss = profit < 0; // Check for loss
+            const isCustom = p.useCustomPrice; // Check if custom price is used
 
+            // Apply row highlight classes
             if (isLoss) {
                 tr.classList.add('loss-row');
+            } else if (isCustom) {
+                 tr.classList.add('custom-price-row');
             }
 
+            // Determine sale price display
+            const saleDisplay = isCustom 
+                ? `<span class="custom-price-text">${formatKs(sale)} (CUSTOM)</span>`
+                : formatKs(sale);
+
+            // Determine profit display
             const profitContent = isLoss 
                 ? `<span class="loss-text">${formatKs(profit)} ⚠ LOSS</span>`
                 : `<span style="color:var(--accent);">${formatKs(profit)}</span>`;
-            
+
             tr.innerHTML = `
                 <td><strong>${escapeHtml(p.name)}</strong></td>
                 <td>${formatKs(original)}</td>
-                <td>${formatKs(sale)}</td>
+                <td>${saleDisplay}</td>
                 <td>${profitContent}</td>
                 <td>
                     <div class="product-actions">
@@ -1344,10 +1477,18 @@
                         `${prod.name} (Copy)`, 
                         (newName) => {
                             if (newName) {
-                                const newProd = { id: uid(), name: newName, price: prod.price };
+                                // Include custom price settings in duplication
+                                const newProd = { 
+                                    id: uid(), 
+                                    name: newName, 
+                                    price: prod.price,
+                                    useCustomPrice: prod.useCustomPrice,
+                                    customSalePrice: prod.customSalePrice
+                                };
                                 cat.products.push(newProd);
-                                saveAndRender(true); // Save state to history
+                                saveAndRender();
                             }
+                            promptModal.style.display = 'none'; // Hide modal after callback
                         }
                     );
                 } else if (action === 'delete') {
@@ -1358,7 +1499,7 @@
                         (confirmed) => {
                             if (confirmed) {
                                 cat.products = cat.products.filter(x => x.id !== id);
-                                saveAndRender(true); // Save state to history
+                                saveAndRender();
                             }
                         }
                     );
@@ -1368,9 +1509,11 @@
     }
 
     function renderSettings() {
+        marginInput.value = state.margin;
         currencyInput.value = state.currency;
         quickCurrencySymbol1.innerText = state.currency; 
-        modalCurrencySymbol.innerText = state.currency; 
+        modalCurrencySymbol1.innerText = state.currency; 
+        modalCurrencySymbol2.innerText = state.currency; 
         
         // Update currency suffix for rounding option
         if (roundingCurrencySuffix) {
@@ -1394,10 +1537,10 @@
 
         let lines = [];
         
-        lines.push(`*** ${g.name} (Margin: ${g.margin}%) ***`);
+        lines.push(`${g.name} (Margin: ${state.margin}%)`);
         
         if (g.desc && g.desc.trim()) {
-            lines.push(`[${g.desc.trim()}]`);
+            lines.push(`${g.desc.trim()}`);
         }
         lines.push('\n'); 
 
@@ -1415,8 +1558,9 @@
                 lines.push('- No products in this category.');
             } else {
                 cat.products.forEach(p => {
-                    const sale = calculateSale(Number(p.price) || 0, selectedGameId);
-                    lines.push(`${p.name} — ${formatKs(sale)}`);
+                    const sale = calculateSale(Number(p.price) || 0, p);
+                    const label = p.useCustomPrice ? `(Custom)` : '';
+                    lines.push(`${p.name} — ${formatKs(sale)} ${label}`);
                 });
             }
 
@@ -1432,9 +1576,20 @@
 
     // --- Calculation helpers ---
 
-    function calculateSale(original, gameId) {
-        const g = findGame(gameId);
-        const margin = (g && g.margin !== undefined) ? Number(g.margin) : 0;
+    /**
+     * Calculates the final sale price.
+     * @param {number} original - The original/cost price.
+     * @param {object} product - The product object or an object with useCustomPrice/customSalePrice properties.
+     * @returns {number} The calculated or custom sale price.
+     */
+    function calculateSale(original, product = { useCustomPrice: false, customSalePrice: 0 }) {
+        // If a custom price is set and the flag is true, use the custom price immediately
+        if (product.useCustomPrice) {
+            return Number(product.customSalePrice) || 0;
+        }
+
+        // Fallback to margin calculation
+        const margin = Number(state.margin) || 0;
         let value = original * (1 + margin / 100);
         
         if (state.rounding === 'up50') {
@@ -1447,7 +1602,14 @@
     }
 
     function formatKs(n) {
-        return `${Number(n).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})} ${state.currency || 'Ks'}`;
+        // Use Math.abs for profit calculation display when negative
+        const num = Math.abs(Number(n)); 
+        const formatted = num.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        
+        // Prepend '-' if the original number was negative
+        const sign = Number(n) < 0 ? '-' : '';
+        
+        return `${sign}${formatted} ${state.currency || 'Ks'}`;
     }
 
     // --- Data helpers ---
@@ -1466,52 +1628,12 @@
         return 'id_' + Math.random().toString(36).slice(2, 9);
     }
 
-    // --- Persistence & History ---
-
-    function getPersistenceState() {
-        return {
-            games: state.games,
-            rounding: state.rounding,
-            currency: state.currency,
-            theme: state.theme,
-            selectedGameId: selectedGameId,
-            selectedCategoryId: selectedCategoryId,
-            // Include history for persistence
-            history: history,
-            historyIndex: historyIndex
-        };
-    }
-    
-    function deepClone(obj) {
-        return JSON.parse(JSON.stringify(obj));
-    }
+    // --- Persistence ---
 
     function saveState() {
-        localStorage.setItem(LS_KEY, JSON.stringify(getPersistenceState()));
-    }
-    
-    // Core function to save current state and optionally add to history
-    function saveAndRender(saveToHistory = false) {
-        if (saveToHistory) {
-            // If the index is not at the end, cut off the "future" history
-            if (historyIndex < history.length - 1) {
-                history = history.slice(0, historyIndex + 1);
-            }
-            
-            const currentState = deepClone(getPersistenceState());
-            
-            // Check if the new state is actually different from the last saved state before pushing
-            if (JSON.stringify(history[historyIndex]) !== JSON.stringify(currentState)) {
-                 history.push(currentState);
-                 if (history.length > MAX_HISTORY) {
-                    history.shift(); // Remove the oldest state
-                 }
-                 historyIndex = history.length - 1;
-            }
-        }
-        
-        saveState();
-        renderAll();
+        state.selectedGameId = selectedGameId;
+        state.selectedCategoryId = selectedCategoryId;
+        localStorage.setItem(LS_KEY, JSON.stringify(state));
     }
 
     function loadState() {
@@ -1524,47 +1646,19 @@
         // Return a complete default structure in case of no data or error
         return { 
             games: [], 
+            margin: 15, 
             rounding: 'none', 
             currency: 'Ks', 
             theme: 'dark', 
             selectedGameId: null, 
-            selectedCategoryId: null,
-            history: [],
-            historyIndex: 0
+            selectedCategoryId: null 
         };
     }
-    
-    function applyHistoryState(index) {
-        if (index < 0 || index >= history.length) return;
-        
-        const hState = history[index];
-        historyIndex = index;
-        
-        // Restore properties from history
-        state.games = hState.games;
-        state.rounding = hState.rounding;
-        state.currency = hState.currency;
-        state.theme = hState.theme;
-        
-        selectedGameId = hState.selectedGameId;
-        selectedCategoryId = hState.selectedCategoryId;
-        
+
+    function saveAndRender() {
+        saveState();
         renderAll();
-        saveState(); // Update localStorage immediately
     }
-
-    function undo() {
-        if (historyIndex > 0) {
-            applyHistoryState(historyIndex - 1);
-        }
-    }
-    
-    function redo() {
-        if (historyIndex < history.length - 1) {
-            applyHistoryState(historyIndex + 1);
-        }
-    }
-
 
     // --- Utilities ---
     function escapeHtml(s) {
