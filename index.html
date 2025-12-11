@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagicMall Custom Price Calculator - Advanced</title>
+    <style>
+        /* --- DARK MODE VARIABLES (Default) --- */
+        :root{
+            --bg:#0f1724;
+            --panel:#0b1220;
+            --muted:#9aa4b2;
+            --accent:#10b981;
+            --danger:#ef4444;
+            --glass: rgba(255,255,255,0.03);
+            --text:#e6eef6;
+            --shadow-color: rgba(2,6,23,0.6);
+            --modal-bg: rgba(11, 18, 32, 0.8);
+            --table-divider: rgba(255,255,255,0.03);
+            --body-bg-fallback: #071026; 
+            --warning: #f59e0b; /* New color for loss/error */
+        } 
+        /* --- LIGHT MODE VARIABLES --- */
+        .light-mode {
+            --bg:#f1f5f9;
+            --panel:#ffffff;
+            --muted:#64748b;
+            --accent:#059669; 
+            --danger:#dc2626;
+            --glass: rgba(0, 0, 0, 0.05);
+            --text:#0f172a; 
+            --shadow-color: rgba(100, 100, 100, 0.2);
+            --modal-bg: rgba(255, 255, 255, 0.95); 
+            --table-divider: rgba(0,0,0,0.08); 
+            --body-bg-fallback: #f1f5f9; 
+            --warning: #d97706; /* New color for loss/error */
+        }
+
+        /* Base Styling */
+        html,body{
+            height:100%;
+            margin:0;
+            font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+            color:var(--text); 
+            transition: background-color 0.3s, color 0.3s; 
+            background:var(--body-bg-fallback); 
+        } 
+        
+        .app{
+            display:grid;
+            grid-template-columns:260px 1fr 360px;
+            gap:18px;
+            padding:18px;
+            height:100vh;
+            box-sizing:border-box;
+            background:var(--bg); 
+        } 
+        .panel{
+            background:var(--panel);
+            border-radius:12px;
+            padding:14px;
+            box-shadow:0 6px 18px var(--shadow-color);
+            overflow:auto;
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
+        } 
+        .panel:hover {
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px var(--shadow-color);
+        }
+        h1{
+            font-size: 24px;
+            margin: 0 0 15px 0;
+            color: var(--accent);
+            text-align: center;
+            grid-column: 1 / -1; 
+        }
+        h2{margin:6px 0 12px;font-size:16px} 
+        
+        /* General Buttons and Inputs */
+        .btn{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:8px 10px;
+            border-radius:8px;
+            border:0;
+            background:transparent;
+            color:var(--muted);
+            cursor:pointer;
+            transition: transform 0.05s ease, background 0.1s ease, color 0.1s ease; 
+        } 
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn.small{padding:6px 8px;font-size:13px} 
+        .controls{display:flex;gap:8px;flex-wrap:wrap} 
+        input[type="text"],input[type="number"],select,textarea{
+            width:100%;
+            padding:8px;
+            border-radius:8px;
+            border:1px solid var(--table-divider);
+            background:transparent;
+            color:var(--text); 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: border-color 0.2s, box-shadow 0.2s;
+        } 
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus { 
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 50%, transparent); 
+        }
+        
+        label.small{font-size:12px;color:var(--muted);display:block;margin-bottom:6px} 
+        .game-input-area input, .game-input-area textarea { margin-bottom: 10px; }
+
+        /* Center Panel - Tabs */ 
+        .games-bar, .categories-bar{
+            display:flex;
+            gap:8px;
+            margin-bottom:12px;
+            overflow-x: auto; 
+            padding-bottom: 4px; 
+        }
+        .games-bar { margin-bottom: 20px; }
+
+        /* --- Game Tab Styling --- */
+        .game-tab-container {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--table-divider); 
+            border-radius: 999px;
+            transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease; 
+        }
+        .game-tab-container.active {
+            background:var(--accent);
+            border-color: var(--accent);
+            color:var(--panel); 
+        }
+        .game-tab, .cat-btn{
+            flex-shrink: 0; 
+            padding:8px 12px;
+            border-radius:999px;
+            cursor:pointer;
+            color:inherit; 
+            font-weight: 500;
+            transition: color 0.3s;
+            border: none;
+            background: transparent;
+        } 
+        
+        /* Category Tab Styling */
+        .category-tab-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--table-divider); 
+            border-radius: 999px;
+            transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        .category-tab-container.active {
+            background:var(--accent);
+            color:var(--panel); 
+            border-color: var(--accent);
+        }
+        .cat-actions .btn, .game-actions .btn {
+            color: inherit;
+            padding: 4px 6px;
+        }
+
+        /* Products Table and Quick Add */
+        .quick-add {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed var(--table-divider);
+        }
+        .quick-add button {
+            grid-column: 3 / 4;
+            margin-top: 24px;
+            background: var(--accent);
+            color: var(--panel); 
+            font-weight: bold;
+        }
+        
+        table{width:100%;border-collapse:collapse;font-size:14px;} 
+        th,td{padding:8px;text-align:left;border-bottom:1px dashed var(--table-divider)} 
+        .muted{color:var(--muted)} 
+        .product-actions{display:flex;gap:6px} 
+        .copy-area{
+            width:100%;
+            height:220px;
+            padding:12px;
+            border-radius:8px;
+            border:1px solid var(--table-divider);
+            background:transparent;
+            color:var(--text); 
+            white-space:pre-wrap;
+            overflow:auto;
+            box-sizing:border-box;
+        } 
+        .footer-note{font-size:12px;color:var(--muted);margin-top:8px} 
+        .top-actions{display:flex;justify-content:space-between;align-items:center} 
+        .danger{color:var(--danger)} 
+        .empty{color:var(--muted);text-align:center;padding:24px} 
+
+        /* --- New/Modified Styles --- */
+
+        /* Loss/Warning Row Highlight */
+        .loss-row td {
+            background: color-mix(in srgb, var(--danger) 10%, transparent);
+        }
+        .loss-text {
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        /* Profit Margin in Game Editor */
+        .game-margin-input {
+            width: calc(100% - 70px) !important; 
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        /* Settings and Summary */
+        .summary-box {
+            background: var(--glass);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .summary-box div {
+            padding: 4px 0;
+            font-size: 14px;
+        }
+        .file-controls { display: flex; gap: 8px; margin-top: 10px; }
+        .currency-input { width: 60px !important; display: inline-block; margin-right: 8px; }
+
+        /* Price Rounding Button-Group Styling */
+        #roundingOptions {
+            display: flex;
+            gap: 10px; 
+            margin-top: 8px;
+        }
+
+        /* Hide the actual radio button */
+        .rounding-option input[type="radio"] {
+            display: none;
+        }
+
+        /* Style the label (which is the button) */
+        .rounding-option label {
+            display: block;
+            flex-grow: 1; 
+            text-align: center;
+            padding: 10px 8px;
+            border-radius: 8px;
+            background: var(--glass); 
+            border: 1px solid var(--table-divider);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted);
+            transition: all 0.2s ease;
+        }
+
+        /* Style for the selected (checked) state */
+        .rounding-option input[type="radio"]:checked + label {
+            background: var(--accent); 
+            border-color: var(--accent);
+            color: var(--panel); 
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Style for hover state */
+        .rounding-option label:hover {
+            background: color-mix(in srgb, var(--accent) 15%, var(--glass));
+            color: var(--text);
+        }
+
+
+        /* Welcome Message */
+        #welcomeMessage {
+            text-align: center;
+            padding: 40px;
+            background: var(--glass);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px dashed var(--accent);
+        }
+        #welcomeMessage h3 {
+            font-size: 18px;
+            color: var(--accent);
+            margin-top: 0;
+        }
+        #welcomeMessage p {
+            color: var(--muted);
+        }
+
+        /* Footer Attribution Style */
+        .app-attribution {
+            grid-column: 1 / -1; 
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        /* MODAL STYLES */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4); 
+            backdrop-filter: blur(5px); 
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--modal-bg); 
+            border: 1px solid var(--table-divider);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-footer .btn {
+            font-weight: bold;
+            padding: 10px 15px;
+            transition: background-color 0.2s;
+            color: var(--text); 
+        }
+        .modal-footer .btn-primary {
+            background: var(--accent);
+            color: var(--panel); 
+        }
+        .modal-footer .btn-danger {
+            background: var(--danger);
+            color: var(--panel); 
+        }
+
+
+        /* MOBILE STYLES */
+        @media (max-width: 1000px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-auto-rows: auto; 
+                height: auto; 
+                min-height: 100vh;
+            }
+            
+            h1 {
+                grid-column: 1 / 2;
+                margin-bottom: 10px;
+            }
+            .panel.center { order: 1; }
+            .panel.left { order: 2; }
+            .panel.right { order: 3; }
+            .app-attribution { order: 4; }
+
+            #productsArea {
+                overflow-x: auto;
+            }
+            table {
+                min-width: 700px; /* Adjusted for new column */
+            }
+
+            .quick-add {
+                grid-template-columns: 1fr;
+                margin-top: 10px;
+            }
+            .quick-add button {
+                grid-column: 1 / 2; 
+                margin-top: 0; 
+                margin-bottom: 10px;
+            }
+            
+            .copy-area {
+                height: 180px;
+            }
+            
+            .controls {
+                justify-content: space-around;
+            }
+            
+            #roundingOptions {
+                 gap: 8px; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    
+    <h1>MagicMall Custom Price Calculator</h1>
+
+    <div class="panel center"> 
+        <div id="welcomeMessage" style="display:none;">
+            <h3>Welcome to Price Manager!</h3>
+            <p>Start by creating your first game on the editor panel below.</p>
+            <p>1. Scroll down to **Game Editor**.<br>2. Click **+ New Game** and fill in the details.</p>
+        </div>
+        
+        <h2 style="margin-top:0;">Game Selector</h2>
+        <div id="gamesBar" class="games-bar" aria-label="Game Tabs">
+            </div> 
+
+        <hr style="margin:12px 0;border-color:var(--table-divider)" />
+
+        <div class="top-actions"> 
+            <h2 id="centerTitle">Categories & Products</h2> 
+            <div class="controls"> 
+                <button class="btn small" id="addCategoryBtn" style="color:var(--accent)">+ Category</button> 
+            </div> 
+        </div> 
+        
+        <div id="categoriesBar" class="categories-bar" aria-label="Category Tabs">
+             <div class="muted">Select a game to see categories.</div>
+        </div> 
+        
+        <div class="quick-add" id="quickAddBar">
+            <div>
+                <label class="small">Product Name</label>
+                <input type="text" id="quickName" placeholder="New product name" />
+            </div>
+            <div>
+                <label class="small">Original Price (<span id="quickCurrencySymbol1">Ks</span>)</label>
+                <input type="number" id="quickPrice" min="0" step="100" placeholder="e.g. 12345" />
+            </div>
+             <div style="grid-column: 1 / 2;">
+                <label class="small">Calculated Sale Price:</label>
+                <span id="quickSaleView" style="color:var(--accent); font-weight: bold;">0 Ks</span>
+            </div>
+            <div>
+                 <button class="btn" id="quickAddBtn" style="background:var(--accent); color:var(--panel);">+ Quick Add</button>
+            </div>
+           
+        </div>
+
+        <div id="productsArea"> 
+            <table> 
+                <thead> 
+                    <tr><th>Product Name</th><th>Original Price</th><th>Sale Price</th><th>Profit</th><th>Actions</th></tr> 
+                </thead> 
+                <tbody id="productsTableBody"></tbody> 
+            </table> 
+            <div id="emptyProducts" class="empty">Select or create a category to see products.</div> 
+        </div> 
+    </div> 
+    
+    <div class="panel left">
+        <div class="top-actions">
+            <h2>Game Editor</h2>
+        </div>
+        
+        <p class="muted small" id="gameEditorInstruction">Use the actions on the selected game tab to edit details.</p>
+        
+        <div class="game-input-area" style="display:none;" id="gameDetailsPanel">
+            <label class="small">Game Name</label>
+            <input type="text" id="gameNameInput" readonly disabled />
+            
+            <div style="margin-top: 10px;">
+                <label class="small">Profit Margin (%)</label> 
+                <input type="number" id="gameMarginInput" class="game-margin-input" min="0" step="0.1" disabled /> 
+                <button class="btn small" id="editMarginBtn" style="color:var(--accent);">Edit</button>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <label class="small">Description / Note</label>
+                <textarea id="gameDescInput" rows="2" readonly disabled></textarea>
+            </div>
+        </div>
+        <button class="btn" id="addGameBtn" style="color:var(--accent); width: 100%; margin-top: 10px;">+ Create New Game</button>
+    </div>
+
+
+    <div class="panel right"> 
+        <h2>Global Settings & Utility</h2> 
+        
+        <div class="summary-box">
+            <div>Games: <strong id="summaryGames">0</strong></div>
+            <div>Categories: <strong id="summaryCategories">0</strong></div>
+            <div>Products: <strong id="summaryProducts">0</strong></div>
+        </div>
+        
+        <div class="controls" style="margin-bottom:12px;">
+            <button class="btn" id="undoBtn" disabled style="background:var(--glass); color:var(--muted);">&#x21BA; Undo</button>
+            <button class="btn" id="redoBtn" disabled style="background:var(--glass); color:var(--muted);">&#x21BB; Redo</button>
+        </div>
+
+        <div style="margin-top:10px"> 
+            <label class="small">Currency Symbol</label> 
+            <input type="text" id="currencyInput" class="currency-input" maxlength="10" /> 
+            (e.g., Ks)
+        </div>
+        
+        <div style="margin-top:10px"> 
+            <label class="small">Price Rounding</label> 
+            <div id="roundingOptions"> 
+                <div class="rounding-option">
+                    <input type="radio" id="roundNone" name="rounding" value="none"/>
+                    <label for="roundNone">Exact Price</label>
+                </div>
+                <div class="rounding-option">
+                    <input type="radio" id="roundUp50" name="rounding" value="up50" />
+                    <label for="roundUp50">Nearest 50<span id="roundingCurrencySuffix">Ks</span></label>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top:10px; display:flex; align-items:center; gap: 10px;"> 
+            <label class="small" style="margin-bottom:0;">Theme</label> 
+            <button class="btn small" id="modeToggleBtn" style="color:var(--text); border: 1px solid var(--table-divider);">☀️ Light Mode</button>
+        </div>
+
+        <hr style="margin:12px 0;border-color:var(--table-divider)" /> 
+        <h2>Data Management</h2>
+        <div class="file-controls">
+             <input type="file" id="importJsonInput" style="display:none;" accept=".json" />
+             <button class="btn" id="importJsonBtn">Import JSON</button> 
+             <button class="btn" id="exportJsonBtn">Export JSON</button> 
+        </div>
+        <hr style="margin:12px 0;border-color:var(--table-divider)" /> 
+        <h2>Copy Preview</h2> 
+        <div id="copyPreview" class="copy-area" contenteditable="false">No game selected.</div> 
+        <div style="display:flex;gap:8px;margin-top:10px"> 
+            <button class="btn" id="copyBtn" style="background:var(--accent); color:var(--panel); font-weight:bold;">Copy to Clipboard</button> 
+        </div> 
+        <div class="footer-note">All data stored locally in your browser.</div> 
+    </div> 
+    
+    <div class="app-attribution">
+        Created by <a href="https://t.me/Magic_Mall_GameShop" style="color:var(--accent); text-decoration:none;">@Magic_Mall_GameShop</a>
+    </div>
+
+</div>
+
+<div id="productEditModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content">
+        <h3>Edit Product: <span id="modalProductNameTitle"></span></h3>
+
+        <label class="small">Product Name</label>
+        <input type="text" id="modalNameInput" />
+        
+        <div style="margin-top: 15px;">
+            <label class="small">Original Price (<span id="modalCurrencySymbol">Ks</span>)</label>
+            <input type="number" id="modalPriceInput" min="0" step="1" />
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn" id="modalCancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="modalSaveBtn">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<div id="promptModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content">
+        <h3 id="promptTitle"></h3>
+        <label class="small" id="promptLabel"></label>
+        <input type="text" id="promptInput" />
+        <div class="modal-footer">
+            <button class="btn" id="promptCancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="promptOKBtn">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="actionModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content">
+        <h3 id="actionTitle"></h3>
+        <p id="actionMessage"></p>
+        <div class="modal-footer">
+            <button class="btn" id="actionCancelBtn">Cancel</button>
+            <button class="btn btn-danger" id="actionOKBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div id="gameEditorModal" class="modal-backdrop" style="display:none;">
+    <div class="modal-content">
+        <h3 id="gameModalTitle">Edit Game Details</h3>
+        
+        <label class="small">Game Name</label>
+        <input type="text" id="gameModalNameInput" />
+        
+        <div style="margin-top: 15px;">
+             <label class="small">Profit Margin (%)</label>
+            <input type="number" id="gameModalMarginInput" min="0" step="0.1" />
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <label class="small">Description / Note</label>
+            <textarea id="gameModalDescInput" rows="3" placeholder="e.g., ID/Server top-up method"></textarea>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn" id="gameModalCancelBtn">Cancel</button>
+            <button class="btn btn-primary" id="gameModalSaveBtn">Save Details</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Single-file SPA logic
+    const LS_KEY = 'reseller_price_manager_v2'; // Updated key for new structure
+    let state = loadState();
+    let selectedGameId = state.selectedGameId || null;
+    let selectedCategoryId = state.selectedCategoryId || null;
+    let editingProductId = null; 
+    let editingGameId = null; 
+
+    // --- Undo/Redo System Variables ---
+    let history = state.history || [];
+    let historyIndex = state.historyIndex || 0;
+    const MAX_HISTORY = 20;
+
+    // Custom Modal Callbacks
+    let currentPromptCallback = null;
+    let currentActionCallback = null;
+
+    // DOM refs
+    const body = document.body;
+    const gamesBar = document.getElementById('gamesBar');
+    const gameNameInput = document.getElementById('gameNameInput');
+    const gameDescInput = document.getElementById('gameDescInput');
+    const gameMarginInput = document.getElementById('gameMarginInput');
+    const editMarginBtn = document.getElementById('editMarginBtn');
+    const addGameBtn = document.getElementById('addGameBtn');
+    const categoriesBar = document.getElementById('categoriesBar');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const productsTableBody = document.getElementById('productsTableBody');
+    const emptyProducts = document.getElementById('emptyProducts');
+    const centerTitle = document.getElementById('centerTitle');
+    const currencyInput = document.getElementById('currencyInput');
+    const copyPreview = document.getElementById('copyPreview');
+    const copyBtn = document.getElementById('copyBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const importJsonBtn = document.getElementById('importJsonBtn');
+    const importJsonInput = document.getElementById('importJsonInput');
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    const modeToggleBtn = document.getElementById('modeToggleBtn');
+    const gameDetailsPanel = document.getElementById('gameDetailsPanel');
+    const gameEditorInstruction = document.getElementById('gameEditorInstruction');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    
+    // Settings Refs
+    const roundingCurrencySuffix = document.getElementById('roundingCurrencySuffix'); 
+
+    // Quick Add Refs
+    const quickAddBar = document.getElementById('quickAddBar');
+    const quickName = document.getElementById('quickName');
+    const quickPrice = document.getElementById('quickPrice');
+    const quickAddBtn = document.getElementById('quickAddBtn');
+    const quickSaleView = document.getElementById('quickSaleView');
+    const quickCurrencySymbol1 = document.getElementById('quickCurrencySymbol1');
+
+    // Product Edit Modal Refs
+    const productEditModal = document.getElementById('productEditModal');
+    const modalProductNameTitle = document.getElementById('modalProductNameTitle');
+    const modalNameInput = document.getElementById('modalNameInput');
+    const modalPriceInput = document.getElementById('modalPriceInput');
+    const modalCurrencySymbol = document.getElementById('modalCurrencySymbol');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    
+    // Prompt Modal Refs
+    const promptModal = document.getElementById('promptModal');
+    const promptTitle = document.getElementById('promptTitle');
+    const promptLabel = document.getElementById('promptLabel');
+    const promptInput = document.getElementById('promptInput');
+    const promptOKBtn = document.getElementById('promptOKBtn');
+    const promptCancelBtn = document.getElementById('promptCancelBtn');
+
+    // Action Modal Refs
+    const actionModal = document.getElementById('actionModal');
+    const actionTitle = document.getElementById('actionTitle');
+    const actionMessage = document.getElementById('actionMessage');
+    const actionOKBtn = document.getElementById('actionOKBtn');
+    const actionCancelBtn = document.getElementById('actionCancelBtn');
+    
+    // Game Editor Modal Refs 
+    const gameEditorModal = document.getElementById('gameEditorModal');
+    const gameModalTitle = document.getElementById('gameModalTitle');
+    const gameModalNameInput = document.getElementById('gameModalNameInput');
+    const gameModalMarginInput = document.getElementById('gameModalMarginInput');
+    const gameModalDescInput = document.getElementById('gameModalDescInput');
+    const gameModalSaveBtn = document.getElementById('gameModalSaveBtn');
+    const gameModalCancelBtn = document.getElementById('gameModalCancelBtn');
+
+
+    // Initialize UI with saved settings
+    function init() {
+        // Migration check for old state (moved margin from global to game)
+        if (state.margin && state.games.length > 0) {
+             state.games.forEach(g => {
+                if (typeof g.margin === 'undefined') g.margin = state.margin;
+             });
+             delete state.margin; // Remove old global margin
+        }
+
+        if (!state.games) state.games = [];
+        if (!state.rounding) state.rounding = 'none';
+        if (!state.currency) state.currency = 'Ks';
+        if (!state.theme) state.theme = 'dark'; 
+
+        if (selectedGameId && !findGame(selectedGameId)) {
+            selectedGameId = state.games.length ? state.games[0].id : null;
+            selectedCategoryId = null; 
+        }
+        if (selectedCategoryId && !findCategory(selectedGameId, selectedCategoryId)) {
+            const g = findGame(selectedGameId);
+            selectedCategoryId = g && g.categories.length ? g.categories[0].id : null;
+        }
+        if (!selectedGameId && state.games.length) {
+            selectedGameId = state.games[0].id;
+        }
+        
+        if (history.length === 0) {
+            // Initialize history with current state if empty
+            history.push(deepClone(getPersistenceState()));
+            historyIndex = 0;
+        }
+
+
+        applyTheme(state.theme); 
+        renderAll();
+        attachListeners();
+    }
+
+    // --- Theme Logic ---
+
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            body.classList.add('light-mode');
+            modeToggleBtn.innerHTML = '🌙 Dark Mode';
+            state.theme = 'light';
+        } else {
+            body.classList.remove('light-mode');
+            modeToggleBtn.innerHTML = '☀️ Light Mode';
+            state.theme = 'dark';
+        }
+        saveState();
+    }
+
+    function toggleTheme() {
+        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+    }
+
+    // --- Custom Modal Implementations ---
+
+    function showPrompt(title, label, defaultValue, callback) {
+        promptTitle.innerText = title;
+        promptLabel.innerText = label;
+        promptInput.value = defaultValue || '';
+        promptModal.style.display = 'flex';
+        promptInput.focus();
+        currentPromptCallback = callback;
+    }
+
+    function showAction(title, message, okText, callback, isDanger = true) {
+        actionTitle.innerText = title;
+        actionMessage.innerText = message;
+        actionOKBtn.innerText = okText;
+        
+        actionOKBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+        
+        actionModal.style.display = 'flex';
+        currentActionCallback = callback;
+    }
+
+
+    function attachListeners() {
+        // --- Utility Actions ---
+        modeToggleBtn.onclick = toggleTheme;
+        undoBtn.onclick = undo;
+        redoBtn.onclick = redo;
+
+
+        // --- Game Actions ---
+        addGameBtn.onclick = () => {
+             openGameEditorModal(null);
+        };
+        editMarginBtn.onclick = () => {
+             openGameEditorModal(selectedGameId);
+        };
+
+
+        // --- Game Editor Modal Handlers ---
+        gameModalCancelBtn.onclick = () => {
+            gameEditorModal.style.display = 'none';
+            editingGameId = null;
+        };
+
+        gameModalSaveBtn.onclick = () => {
+            const name = gameModalNameInput.value.trim();
+            const desc = gameModalDescInput.value;
+            const margin = Number(gameModalMarginInput.value);
+
+            if (!name) return showAction('Error', 'Game Name is required. Please enter a name.', 'Close', () => {}, false);
+            if (!isFinite(margin) || margin < 0) return showAction('Error', 'Invalid margin entered.', 'Close', () => {}, false);
+
+
+            if (editingGameId) {
+                const g = findGame(editingGameId);
+                if (!g) return;
+                g.name = name;
+                g.desc = desc;
+                g.margin = margin;
+            } else {
+                const g = { id: uid(), name, desc, margin, categories: [] };
+                state.games.push(g);
+                selectedGameId = g.id;
+                selectedCategoryId = null;
+            }
+            
+            gameEditorModal.style.display = 'none';
+            editingGameId = null;
+            saveAndRender(true); // Save state to history
+        };
+
+
+        // --- Category Actions ---
+        addCategoryBtn.onclick = () => {
+            if (!selectedGameId) return showAction('Error', 'Please select a game first before adding a category.', 'Close', () => {}, false);
+            
+            showPrompt(
+                'New Category', 
+                'Category name (e.g., Diamond Packs)', 
+                '', 
+                (name) => {
+                    if (name) {
+                        const g = findGame(selectedGameId);
+                        const c = { id: uid(), name, products: [] };
+                        g.categories.push(c);
+                        selectedCategoryId = c.id; 
+                        saveAndRender(true); // Save state to history
+                    }
+                }
+            );
+        };
+
+        // --- Product Quick Add Actions ---
+        quickAddBtn.onclick = () => {
+             if (!selectedGameId) return showAction('Error', 'Select a game first.', 'Close', () => {}, false);
+             if (!selectedCategoryId) return showAction('Error', 'Select a category first.', 'Close', () => {}, false);
+             
+             const name = quickName.value.trim();
+             const price = Number(quickPrice.value);
+             
+             if (!name) return showAction('Error', 'Product name is required.', 'Close', () => {}, false);
+             if (!isFinite(price) || price <= 0) return showAction('Error', 'Invalid original price.', 'Close', () => {}, false);
+
+             const p = { id: uid(), name, price };
+             const cat = findCategory(selectedGameId, selectedCategoryId);
+             cat.products.push(p);
+
+             quickName.value = '';
+             quickPrice.value = '';
+             quickSaleView.innerText = formatKs(0);
+             quickName.focus();
+             saveAndRender(true); // Save state to history
+        };
+
+        quickPrice.oninput = (e) => {
+            const price = Number(e.target.value);
+            if (isFinite(price) && price > 0) {
+                quickSaleView.innerText = formatKs(calculateSale(price, selectedGameId));
+            } else {
+                quickSaleView.innerText = formatKs(0);
+            }
+        };
+
+
+        // --- Global Settings Actions ---
+        currencyInput.oninput = (e) => {
+            state.currency = e.target.value.trim().toUpperCase() || 'KS';
+            // Update all currency display elements
+            quickCurrencySymbol1.innerText = state.currency;
+            modalCurrencySymbol.innerText = state.currency;
+            if (roundingCurrencySuffix) {
+                 roundingCurrencySuffix.innerText = state.currency; 
+            }
+            
+            saveAndRender(true); // Save state to history
+        };
+
+        // Listener for the radio button group (handles the rounding state)
+        document.querySelectorAll('input[name="rounding"]').forEach(r => r.onchange = (e) => {
+            state.rounding = e.target.value;
+            saveAndRender(true); // Save state to history
+        });
+
+        // --- Modal Actions (Generic Handlers) ---
+        promptCancelBtn.onclick = () => {
+            promptModal.style.display = 'none';
+            if (currentPromptCallback) currentPromptCallback(null);
+            currentPromptCallback = null;
+        };
+        promptOKBtn.onclick = () => {
+            promptModal.style.display = 'none';
+            if (currentPromptCallback) currentPromptCallback(promptInput.value.trim());
+            currentPromptCallback = null;
+        };
+        actionCancelBtn.onclick = () => {
+            actionModal.style.display = 'none';
+            if (currentActionCallback) currentActionCallback(false);
+            currentActionCallback = null;
+        };
+        actionOKBtn.onclick = () => {
+            actionModal.style.display = 'none';
+            if (currentActionCallback) currentActionCallback(true);
+            currentActionCallback = null;
+        };
+
+        // --- Product Edit Modal Actions ---
+        modalCancelBtn.onclick = () => {
+            productEditModal.style.display = 'none';
+            editingProductId = null;
+        };
+        
+        modalSaveBtn.onclick = () => {
+            const cat = findCategory(selectedGameId, selectedCategoryId);
+            const prod = cat.products.find(x => x.id === editingProductId);
+
+            const newName = modalNameInput.value.trim();
+            const newPrice = Number(modalPriceInput.value);
+
+            if (!newName) return showAction('Error', 'Product name cannot be empty.', 'Close', () => {}, false);
+            if (!isFinite(newPrice) || newPrice < 0) return showAction('Error', 'Invalid price entered.', 'Close', () => {}, false);
+
+            prod.name = newName;
+            prod.price = newPrice;
+            
+            productEditModal.style.display = 'none';
+            editingProductId = null;
+            saveAndRender(true); // Save state to history
+        };
+
+
+        // --- Data Management Actions ---
+        copyBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(copyPreview.innerText); 
+                copyBtn.innerText = 'Copied!';
+                setTimeout(() => copyBtn.innerText = 'Copy to Clipboard', 1200);
+            } catch (err) {
+                showAction('Copy Failed', 'Could not copy to clipboard. Please copy manually from the preview box.', 'OK', () => {}, false);
+            }
+        };
+
+        exportJsonBtn.onclick = () => {
+            // Use the persistence state for export to include selected IDs, history, etc.
+            const exportState = getPersistenceState(); 
+            const blob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reseller-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        importJsonBtn.onclick = () => {
+            importJsonInput.click();
+        };
+
+        importJsonInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedState = JSON.parse(event.target.result);
+                    
+                    if (!importedState.games || !Array.isArray(importedState.games)) {
+                        throw new Error("Invalid file structure. Must contain a 'games' array.");
+                    }
+                    
+                    // Restore global state properties
+                    state.games = importedState.games || [];
+                    state.currency = importedState.currency || 'Ks';
+                    state.rounding = importedState.rounding || 'none';
+                    state.theme = importedState.theme || 'dark';
+                    
+                    // Restore UI selection
+                    selectedGameId = importedState.selectedGameId || (state.games.length ? state.games[0].id : null);
+                    selectedCategoryId = importedState.selectedCategoryId || null;
+                    
+                    // Clear and reset history for imported state
+                    history = [deepClone(getPersistenceState())];
+                    historyIndex = 0;
+
+
+                    showAction('Import Successful', 'Data imported successfully! Reloading application.', 'OK', () => {saveAndRender()}, false);
+
+                } catch (error) {
+                    showAction('Import Failed', `Failed to import file: ${error.message}`, 'Close', () => {}, false);
+                }
+                // Clear the file input
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        };
+    }
+    
+    // --- Game Editor Modal Handler ---
+    function openGameEditorModal(gameId) {
+        editingGameId = gameId;
+        const isNew = !gameId;
+        // Use a default margin of 15% for new games
+        const g = isNew ? { name: '', desc: '', margin: 15 } : findGame(gameId);
+
+        if (!g && !isNew) return showAction('Error', 'Game not found.', 'Close', () => {}, false);
+
+        gameModalTitle.innerText = isNew ? 'Create New Game' : `Edit: ${g.name}`;
+        gameModalNameInput.value = g.name;
+        gameModalMarginInput.value = g.margin;
+        gameModalDescInput.value = g.desc;
+        gameModalSaveBtn.innerText = isNew ? 'Create Game' : 'Save Changes';
+        
+        gameEditorModal.style.display = 'flex';
+        gameModalNameInput.focus();
+    }
+
+
+    // --- Product Edit Modal Handler ---
+    function openProductModal(productId) {
+        const cat = findCategory(selectedGameId, selectedCategoryId);
+        const prod = cat.products.find(x => x.id === productId);
+
+        if (!prod) return showAction('Error', 'Product not found.', 'Close', () => {}, false);
+
+        editingProductId = productId;
+        
+        modalProductNameTitle.innerText = prod.name;
+        modalNameInput.value = prod.name;
+        modalPriceInput.value = prod.price;
+        modalCurrencySymbol.innerText = state.currency;
+
+        productEditModal.style.display = 'flex';
+        modalNameInput.focus();
+    }
+
+
+    // --- Render Functions ---
+
+    function renderAll() {
+        renderWelcomeMessage();
+        renderGames();
+        renderGameInputPanel();
+        renderCenter();
+        renderSettings();
+        renderProducts();
+        renderCopyPreview();
+        renderSummary(); 
+        updateUndoRedoButtons();
+        // Note: saveState() is now usually called by saveAndRender(saveToHistory)
+    }
+    
+    function updateUndoRedoButtons() {
+        undoBtn.disabled = historyIndex <= 0;
+        redoBtn.disabled = historyIndex >= history.length - 1;
+    }
+
+
+    function renderWelcomeMessage() {
+        welcomeMessage.style.display = state.games.length > 0 ? 'none' : 'block';
+    }
+
+    function renderSummary() {
+        let totalCategories = 0;
+        let totalProducts = 0;
+
+        state.games.forEach(g => {
+            totalCategories += g.categories ? g.categories.length : 0;
+            g.categories.forEach(c => {
+                totalProducts += c.products ? c.products.length : 0;
+            });
+        });
+
+        document.getElementById('summaryGames').innerText = state.games.length;
+        document.getElementById('summaryCategories').innerText = totalCategories;
+        document.getElementById('summaryProducts').innerText = totalProducts;
+    }
+
+    function renderGameInputPanel() {
+        const g = findGame(selectedGameId);
+
+        if (g) {
+            gameDetailsPanel.style.display = 'block';
+            gameEditorInstruction.style.display = 'none';
+            gameNameInput.value = g.name;
+            gameDescInput.value = g.desc;
+            gameMarginInput.value = g.margin;
+        } else {
+            gameDetailsPanel.style.display = 'none';
+            gameEditorInstruction.style.display = 'block';
+        }
+    }
+
+    function renderGames() {
+        gamesBar.innerHTML = '';
+        if (state.games.length === 0) {
+            gamesBar.innerHTML = '<div class="muted">Start by creating a game.</div>';
+            return;
+        }
+
+        state.games.forEach(g => {
+            const wrapper = document.createElement('div');
+            const isActive = g.id === selectedGameId;
+            wrapper.className = 'game-tab-container' + (isActive ? ' active' : '');
+            
+            const btn = document.createElement('button');
+            btn.className = 'game-tab';
+            btn.innerText = g.name;
+            
+            btn.onclick = () => {
+                selectedGameId = g.id;
+                selectedCategoryId = g.categories && g.categories.length ? g.categories[0].id : null; 
+                renderAll();
+            };
+            
+            wrapper.appendChild(btn);
+
+            if (isActive) {
+                const actions = document.createElement('div');
+                actions.className = 'game-actions';
+                
+                // Edit Button
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn small';
+                editBtn.innerHTML = '&#9998;'; 
+                editBtn.title = 'Edit Game Details';
+                editBtn.onclick = () => openGameEditorModal(g.id);
+                actions.appendChild(editBtn);
+
+                // Delete Button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn small danger';
+                deleteBtn.style.color = 'inherit';
+                deleteBtn.innerHTML = '&times;'; 
+                deleteBtn.title = 'Delete Game';
+                deleteBtn.onclick = () => {
+                    showAction(
+                        'Confirm Deletion', 
+                        `Are you sure you want to delete game "${g.name}" and all its data? This cannot be undone.`, 
+                        'Delete Permanently', 
+                        (confirmed) => {
+                            if (confirmed) {
+                                state.games = state.games.filter(x => x.id !== g.id);
+                                selectedGameId = state.games.length ? state.games[0].id : null;
+                                selectedCategoryId = null;
+                                saveAndRender(true); // Save state to history
+                            }
+                        }
+                    );
+                };
+                actions.appendChild(deleteBtn);
+                wrapper.appendChild(actions);
+            }
+            gamesBar.appendChild(wrapper);
+        });
+    }
+
+    function renderCenter() {
+        const g = findGame(selectedGameId);
+        
+        addCategoryBtn.disabled = !selectedGameId;
+        quickAddBar.style.display = selectedCategoryId ? 'grid' : 'none'; 
+        
+        centerTitle.innerText = g ? `Categories & Products — ${g.name} (${g.margin}%)` : 'Categories & Products';
+        categoriesBar.innerHTML = '';
+
+        if (!g) {
+            categoriesBar.innerHTML = '<div class="muted">Select a game to see categories.</div>';
+            return;
+        }
+
+        if (!g.categories || g.categories.length === 0) {
+            categoriesBar.innerHTML = '<div class="muted">No categories yet. Click "+ Category" to add one.</div>';
+            selectedCategoryId = null;
+            return;
+        }
+
+        // Auto-select first category if current one is deleted or null
+        if (selectedCategoryId && !g.categories.find(c => c.id === selectedCategoryId)) {
+            selectedCategoryId = g.categories.length ? g.categories[0].id : null;
+        } else if (!selectedCategoryId) {
+             selectedCategoryId = g.categories.length ? g.categories[0].id : null;
+        }
+
+
+        g.categories.forEach(c => {
+            const wrapper = document.createElement('div');
+            const isActive = c.id === selectedCategoryId;
+            wrapper.className = 'category-tab-container' + (isActive ? ' active' : '');
+            
+            const btn = document.createElement('button');
+            btn.className = 'cat-btn';
+            btn.innerText = c.name;
+
+            btn.onclick = () => {
+                selectedCategoryId = c.id;
+                renderAll();
+            };
+            
+            wrapper.appendChild(btn);
+
+            if (isActive) {
+                const actions = document.createElement('div');
+                actions.className = 'cat-actions';
+                
+                // Rename Button
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'btn small';
+                renameBtn.innerHTML = '&#9998;'; 
+                renameBtn.title = 'Rename Category';
+                renameBtn.onclick = () => {
+                     showPrompt(
+                        'Rename Category', 
+                        'New category name', 
+                        c.name, 
+                        (newName) => {
+                            if (newName) {
+                                c.name = newName;
+                                saveAndRender(true); // Save state to history
+                            }
+                        }
+                    );
+                };
+                actions.appendChild(renameBtn);
+
+                // Delete Button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn small danger';
+                deleteBtn.style.color = 'inherit';
+                deleteBtn.innerHTML = '&times;'; 
+                deleteBtn.title = 'Delete Category';
+                deleteBtn.onclick = () => {
+                    showAction(
+                        'Confirm Deletion', 
+                        `Delete category "${c.name}" and all its products?`, 
+                        'Delete', 
+                        (confirmed) => {
+                            if (confirmed) {
+                                g.categories = g.categories.filter(x => x.id !== c.id);
+                                if (selectedCategoryId === c.id) selectedCategoryId = g.categories[0] ? g.categories[0].id : null;
+                                saveAndRender(true); // Save state to history
+                            }
+                        }
+                    );
+                };
+                actions.appendChild(deleteBtn);
+                wrapper.appendChild(actions);
+            }
+            categoriesBar.appendChild(wrapper);
+        });
+    }
+
+    function renderProducts() {
+        productsTableBody.innerHTML = '';
+        const cat = findCategory(selectedGameId, selectedCategoryId);
+
+        if (!cat) {
+            emptyProducts.style.display = 'block';
+            quickAddBar.style.display = 'none'; 
+            return;
+        }
+        
+        emptyProducts.style.display = 'none';
+        quickAddBar.style.display = 'grid';
+
+        if (!cat.products || cat.products.length === 0) {
+            productsTableBody.innerHTML = '<tr><td colspan="5" class="muted">No products in this category.</td></tr>';
+            return;
+        }
+
+        cat.products.forEach(p => {
+            const tr = document.createElement('tr');
+            const original = Number(p.price) || 0;
+            const sale = calculateSale(original, selectedGameId);
+            const profit = sale - original;
+            const isLoss = profit < 0;
+
+            if (isLoss) {
+                tr.classList.add('loss-row');
+            }
+
+            const profitContent = isLoss 
+                ? `<span class="loss-text">${formatKs(profit)} ⚠ LOSS</span>`
+                : `<span style="color:var(--accent);">${formatKs(profit)}</span>`;
+            
+            tr.innerHTML = `
+                <td><strong>${escapeHtml(p.name)}</strong></td>
+                <td>${formatKs(original)}</td>
+                <td>${formatKs(sale)}</td>
+                <td>${profitContent}</td>
+                <td>
+                    <div class="product-actions">
+                        <button class="btn small" data-id="${p.id}" data-action="edit">Edit</button>
+                        <button class="btn small" data-id="${p.id}" data-action="duplicate">Duplicate</button>
+                        <button class="btn small danger" data-id="${p.id}" data-action="delete">Delete</button>
+                    </div>
+                </td>`;
+            productsTableBody.appendChild(tr);
+        });
+
+        // attach button events
+        productsTableBody.querySelectorAll('button').forEach(b => {
+            b.onclick = () => {
+                const id = b.dataset.id;
+                const action = b.dataset.action;
+                const prod = cat.products.find(x => x.id === id);
+
+                if (action === 'edit') {
+                    openProductModal(id);
+                } else if (action === 'duplicate') {
+                     showPrompt(
+                        'Duplicate Product', 
+                        'New name for duplicate product', 
+                        `${prod.name} (Copy)`, 
+                        (newName) => {
+                            if (newName) {
+                                const newProd = { id: uid(), name: newName, price: prod.price };
+                                cat.products.push(newProd);
+                                saveAndRender(true); // Save state to history
+                            }
+                        }
+                    );
+                } else if (action === 'delete') {
+                    showAction(
+                        'Confirm Deletion', 
+                        `Delete product "${prod.name}"?`, 
+                        'Delete', 
+                        (confirmed) => {
+                            if (confirmed) {
+                                cat.products = cat.products.filter(x => x.id !== id);
+                                saveAndRender(true); // Save state to history
+                            }
+                        }
+                    );
+                }
+            };
+        });
+    }
+
+    function renderSettings() {
+        currencyInput.value = state.currency;
+        quickCurrencySymbol1.innerText = state.currency; 
+        modalCurrencySymbol.innerText = state.currency; 
+        
+        // Update currency suffix for rounding option
+        if (roundingCurrencySuffix) {
+             roundingCurrencySuffix.innerText = state.currency; 
+        }
+
+        // Set the correct radio button to be checked
+        const roundingValue = state.rounding || 'none';
+        const radioId = `round${roundingValue === 'up50' ? 'Up50' : 'None'}`;
+        const r = document.getElementById(radioId);
+        if (r) r.checked = true;
+    }
+
+    function renderCopyPreview() {
+        const g = findGame(selectedGameId);
+        
+        if (!g || state.games.length === 0) {
+            copyPreview.innerText = 'No game selected.';
+            return;
+        }
+
+        let lines = [];
+        
+        lines.push(`*** ${g.name} (Margin: ${g.margin}%) ***`);
+        
+        if (g.desc && g.desc.trim()) {
+            lines.push(`[${g.desc.trim()}]`);
+        }
+        lines.push('\n'); 
+
+        if (g.categories.length === 0) {
+             lines.push('[No categories defined for this game.]');
+             copyPreview.innerText = lines.join('\n');
+             return;
+        }
+
+        g.categories.forEach((cat, index) => {
+            lines.push(cat.name.toUpperCase());
+            lines.push(''); 
+
+            if (cat.products.length === 0) {
+                lines.push('- No products in this category.');
+            } else {
+                cat.products.forEach(p => {
+                    const sale = calculateSale(Number(p.price) || 0, selectedGameId);
+                    lines.push(`${p.name} — ${formatKs(sale)}`);
+                });
+            }
+
+            if (index < g.categories.length - 1) {
+                lines.push('\n--------------------\n');
+            } else {
+                 lines.push(''); 
+            }
+        });
+        
+        copyPreview.innerText = lines.join('\n').trim(); 
+    }
+
+    // --- Calculation helpers ---
+
+    function calculateSale(original, gameId) {
+        const g = findGame(gameId);
+        const margin = (g && g.margin !== undefined) ? Number(g.margin) : 0;
+        let value = original * (1 + margin / 100);
+        
+        if (state.rounding === 'up50') {
+            value = Math.ceil(value / 50) * 50;
+        } else {
+            // Default to standard rounding (nearest whole number)
+            value = Math.round(value);
+        }
+        return value;
+    }
+
+    function formatKs(n) {
+        return `${Number(n).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0})} ${state.currency || 'Ks'}`;
+    }
+
+    // --- Data helpers ---
+
+    function findGame(id) {
+        return state.games.find(g => g.id === id);
+    }
+
+    function findCategory(gameId, catId) {
+        const g = findGame(gameId);
+        if (!g || !g.categories) return null;
+        return g.categories.find(c => c.id === catId);
+    }
+
+    function uid() {
+        return 'id_' + Math.random().toString(36).slice(2, 9);
+    }
+
+    // --- Persistence & History ---
+
+    function getPersistenceState() {
+        return {
+            games: state.games,
+            rounding: state.rounding,
+            currency: state.currency,
+            theme: state.theme,
+            selectedGameId: selectedGameId,
+            selectedCategoryId: selectedCategoryId,
+            // Include history for persistence
+            history: history,
+            historyIndex: historyIndex
+        };
+    }
+    
+    function deepClone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    function saveState() {
+        localStorage.setItem(LS_KEY, JSON.stringify(getPersistenceState()));
+    }
+    
+    // Core function to save current state and optionally add to history
+    function saveAndRender(saveToHistory = false) {
+        if (saveToHistory) {
+            // If the index is not at the end, cut off the "future" history
+            if (historyIndex < history.length - 1) {
+                history = history.slice(0, historyIndex + 1);
+            }
+            
+            const currentState = deepClone(getPersistenceState());
+            
+            // Check if the new state is actually different from the last saved state before pushing
+            if (JSON.stringify(history[historyIndex]) !== JSON.stringify(currentState)) {
+                 history.push(currentState);
+                 if (history.length > MAX_HISTORY) {
+                    history.shift(); // Remove the oldest state
+                 }
+                 historyIndex = history.length - 1;
+            }
+        }
+        
+        saveState();
+        renderAll();
+    }
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {
+            console.error("Failed to load state from LocalStorage:", e);
+        }
+        // Return a complete default structure in case of no data or error
+        return { 
+            games: [], 
+            rounding: 'none', 
+            currency: 'Ks', 
+            theme: 'dark', 
+            selectedGameId: null, 
+            selectedCategoryId: null,
+            history: [],
+            historyIndex: 0
+        };
+    }
+    
+    function applyHistoryState(index) {
+        if (index < 0 || index >= history.length) return;
+        
+        const hState = history[index];
+        historyIndex = index;
+        
+        // Restore properties from history
+        state.games = hState.games;
+        state.rounding = hState.rounding;
+        state.currency = hState.currency;
+        state.theme = hState.theme;
+        
+        selectedGameId = hState.selectedGameId;
+        selectedCategoryId = hState.selectedCategoryId;
+        
+        renderAll();
+        saveState(); // Update localStorage immediately
+    }
+
+    function undo() {
+        if (historyIndex > 0) {
+            applyHistoryState(historyIndex - 1);
+        }
+    }
+    
+    function redo() {
+        if (historyIndex < history.length - 1) {
+            applyHistoryState(historyIndex + 1);
+        }
+    }
+
+
+    // --- Utilities ---
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // Start the application
+    init();
+</script>
+
+</body>
+</html>
