@@ -18,7 +18,7 @@
             --modal-bg: rgba(11, 18, 32, 0.8);
             --table-divider: rgba(255,255,255,0.03);
             --body-bg-fallback: #071026; 
-            --warning: #f59e0b; /* New color for loss/error */
+            --warning: #f59e0b; 
         } 
         /* --- LIGHT MODE VARIABLES --- */
         .light-mode {
@@ -33,7 +33,7 @@
             --modal-bg: rgba(255, 255, 255, 0.95); 
             --table-divider: rgba(0,0,0,0.08); 
             --body-bg-fallback: #f1f5f9; 
-            --warning: #d97706; /* New color for loss/error */
+            --warning: #d97706; 
         }
 
         /* Base Styling */
@@ -54,7 +54,30 @@
             height:100vh;
             box-sizing:border-box;
             background:var(--bg); 
+            /* Define explicit grid areas for desktop to maintain 3-column layout regardless of HTML order */
+            grid-template-areas:
+                "header header header"
+                "left center right"
+                "footer footer footer";
         } 
+        
+        .app > h1 {
+             grid-area: header;
+             /* Ensure H1 spans all 3 columns */
+        }
+        .panel.left {
+            grid-area: left;
+        }
+        .panel.center {
+            grid-area: center;
+        }
+        .panel.right {
+            grid-area: right;
+        }
+        .app-attribution {
+            grid-area: footer;
+        }
+        
         .panel{
             background:var(--panel);
             border-radius:12px;
@@ -212,8 +235,6 @@
         .empty{color:var(--muted);text-align:center;padding:24px} 
 
         /* --- Loss/Warning Styles --- */
-
-        /* Loss/Warning Row Highlight */
         .loss-row td {
             background: color-mix(in srgb, var(--danger) 10%, transparent);
         }
@@ -420,22 +441,28 @@
                 grid-auto-rows: auto; 
                 height: auto; 
                 min-height: 100vh;
+                /* Reset Grid areas for mobile */
+                 grid-template-areas:
+                    "header"
+                    "left"
+                    "center"
+                    "right"
+                    "footer";
             }
             
             h1 {
                 grid-column: 1 / 2;
                 margin-bottom: 10px;
             }
-            .panel.center { order: 1; }
-            .panel.left { order: 2; }
-            .panel.right { order: 3; }
-            .app-attribution { order: 4; }
+            
+            /* The HTML order is now Left -> Center -> Right, 
+               which is the desired stacked order for mobile. 
+               No need to use 'order' property. */
 
             #productsArea {
                 overflow-x: auto;
             }
             table {
-                /* Increased min-width to accommodate new 'Profit' column */
                 min-width: 700px; 
             }
 
@@ -469,11 +496,32 @@
     
     <h1>MagicMall Custom Price Calculator</h1>
 
+    <div class="panel left">
+        <div class="top-actions">
+            <h2>Game Editor</h2>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label class="small">Search Game Name</label>
+            <input type="text" id="gameSearchInput" placeholder="Type to filter games..." />
+        </div>
+        
+        <p class="muted small" id="gameEditorInstruction">Use the actions on the selected game tab to edit details.</p>
+        
+        <div class="game-input-area" style="display:none;" id="gameDetailsPanel">
+            <label class="small">Game Name</label>
+            <input type="text" id="gameNameInput" readonly disabled />
+            
+            <label class="small">Description / Note</label>
+            <textarea id="gameDescInput" rows="2" readonly disabled></textarea>
+        </div>
+        <button class="btn" id="addGameBtn" style="color:var(--accent); width: 100%; margin-top: 10px;">+ Create New Game</button>
+    </div>
+
     <div class="panel center"> 
         <div id="welcomeMessage" style="display:none;">
             <h3>Welcome to Price Manager!</h3>
-            <p>Start by creating your first game on the editor panel below.</p>
-            <p>1. Scroll down to **Game Editor**.<br>2. Click **+ New Game** and fill in the details.</p>
+            <p>Start by creating your first game on the editor panel to the left.</p>
         </div>
         
         <h2 style="margin-top:0;">Game Selector</h2>
@@ -521,26 +569,8 @@
             </table> 
             <div id="emptyProducts" class="empty">Select or create a category to see products.</div> 
         </div> 
-    </div> 
-    
-    <div class="panel left">
-        <div class="top-actions">
-            <h2>Game Editor</h2>
-        </div>
-        
-        <p class="muted small" id="gameEditorInstruction">Use the actions on the selected game tab to edit details.</p>
-        
-        <div class="game-input-area" style="display:none;" id="gameDetailsPanel">
-            <label class="small">Game Name</label>
-            <input type="text" id="gameNameInput" readonly disabled />
-            
-            <label class="small">Description / Note</label>
-            <textarea id="gameDescInput" rows="2" readonly disabled></textarea>
-        </div>
-        <button class="btn" id="addGameBtn" style="color:var(--accent); width: 100%; margin-top: 10px;">+ Create New Game</button>
     </div>
-
-
+    
     <div class="panel right"> 
         <h2>Global Settings & Utility</h2> 
         
@@ -680,7 +710,7 @@
     </div>
 </div>
 
-
+// --- SCRIPT (JS remains functionally the same, references are still correct) ---
 <script>
     // Single-file SPA logic
     const LS_KEY = 'reseller_price_manager_v1';
@@ -694,7 +724,7 @@
     let currentPromptCallback = null;
     let currentActionCallback = null;
 
-    // DOM refs
+    // DOM refs (All DOM element declarations remain correct)
     const body = document.body;
     const gamesBar = document.getElementById('gamesBar');
     const gameNameInput = document.getElementById('gameNameInput');
@@ -717,6 +747,9 @@
     const gameDetailsPanel = document.getElementById('gameDetailsPanel');
     const gameEditorInstruction = document.getElementById('gameEditorInstruction');
     
+    // NEW REF
+    const gameSearchInput = document.getElementById('gameSearchInput');
+
     // Settings Refs
     const roundingCurrencySuffix = document.getElementById('roundingCurrencySuffix'); 
 
@@ -734,11 +767,11 @@
     const modalNameInput = document.getElementById('modalNameInput');
     const modalPriceInput = document.getElementById('modalPriceInput');
     const modalCurrencySymbol1 = document.getElementById('modalCurrencySymbol1');
-    const modalCurrencySymbol2 = document.getElementById('modalCurrencySymbol2'); // NEW
-    const modalCalculatedSalePrice = document.getElementById('modalCalculatedSalePrice'); // NEW
-    const modalCustomPriceToggle = document.getElementById('modalCustomPriceToggle'); // NEW
-    const modalCustomPriceInputArea = document.getElementById('modalCustomPriceInputArea'); // NEW
-    const modalCustomPriceInput = document.getElementById('modalCustomPriceInput'); // NEW
+    const modalCurrencySymbol2 = document.getElementById('modalCurrencySymbol2'); 
+    const modalCalculatedSalePrice = document.getElementById('modalCalculatedSalePrice'); 
+    const modalCustomPriceToggle = document.getElementById('modalCustomPriceToggle'); 
+    const modalCustomPriceInputArea = document.getElementById('modalCustomPriceInputArea'); 
+    const modalCustomPriceInput = document.getElementById('modalCustomPriceInput'); 
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalCancelBtn = document.getElementById('modalCancelBtn');
     
@@ -802,12 +835,24 @@
         }
 
 
+        // 1. Initial render of settings values (especially margin/currency)
+        renderSettings();
+        
         applyTheme(state.theme); 
         hideAllModals(); 
-        renderAll();
-        attachListeners();
+        
+        // This call MUST be robust and not crash
+        renderAll(false); 
+        
+        // 2. ATTACH STATIC LISTENERS CRITICAL FOR IMMEDIATE FUNCTIONALITY
+        attachCriticalListeners();
+        
+        // 3. ATTACH ALL OTHER LISTENERS (MODALS, DYNAMIC CONTENT)
+        attachDynamicListeners();
+        
+        saveState(); // Save final state after initialization
     }
-
+    
     // Function to hide all modals
     function hideAllModals() {
         productEditModal.style.display = 'none';
@@ -817,7 +862,7 @@
     }
 
 
-    // --- Theme Logic ---
+    // --- Theme Logic (No change) ---
 
     function applyTheme(theme) {
         if (theme === 'light') {
@@ -829,14 +874,14 @@
             modeToggleBtn.innerHTML = '☀️ Light Mode';
             state.theme = 'dark';
         }
-        saveState();
     }
 
     function toggleTheme() {
         applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+        saveState();
     }
 
-    // --- Custom Modal Implementations ---
+    // --- Custom Modal Implementations (No change) ---
 
     function showPrompt(title, label, defaultValue, callback) {
         promptTitle.innerText = title;
@@ -859,9 +904,69 @@
     }
 
 
-    function attachListeners() {
+    // **NEW FUNCTION** for core, static input listeners
+    function attachCriticalListeners() {
+        
+         // --- Settings Actions ---
+        marginInput.oninput = (e) => {
+            state.margin = Number(e.target.value) || 0;
+            saveState();
+            renderProducts();
+            renderCopyPreview();
+            // Recalculate quick add preview if a price is entered
+            const price = Number(quickPrice.value);
+            if (isFinite(price) && price > 0) {
+                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
+            }
+        };
+
+        currencyInput.oninput = (e) => {
+            state.currency = e.target.value.trim().toUpperCase() || 'KS';
+            // Update all currency display elements
+            quickCurrencySymbol1.innerText = state.currency;
+            modalCurrencySymbol1.innerText = state.currency;
+            modalCurrencySymbol2.innerText = state.currency;
+            if (roundingCurrencySuffix) {
+                 roundingCurrencySuffix.innerText = state.currency; 
+            }
+            
+            saveState();
+            renderProducts();
+            renderCopyPreview();
+        };
+        
+        // The quickPrice input listener should correctly calculate the price.
+        quickPrice.oninput = (e) => {
+            const price = Number(e.target.value);
+            if (isFinite(price) && price > 0) {
+                // IMPORTANT: Calculate using margin for quick add preview
+                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
+            } else {
+                quickSaleView.innerText = formatKs(0);
+            }
+        };
+
+        // Listener for the radio button group (handles the rounding state)
+        document.querySelectorAll('input[name="rounding"]').forEach(r => r.onchange = (e) => {
+            state.rounding = e.target.value;
+            saveState();
+            renderProducts();
+            renderCopyPreview();
+        });
+        
+    }
+
+
+    // **RENAMED/REFACTORED FUNCTION** for all other button/modal/non-settings listeners
+    function attachDynamicListeners() {
+        
         // --- Theme Toggle ---
         modeToggleBtn.onclick = toggleTheme;
+        
+        // --- NEW GAME SEARCH LISTENER ---
+        gameSearchInput.oninput = () => {
+            renderGames(); // Simply re-render the games bar to apply the filter
+        };
 
         // --- Game Actions ---
         addGameBtn.onclick = () => {
@@ -952,52 +1057,6 @@
              quickName.focus();
              saveAndRender();
         };
-
-        quickPrice.oninput = (e) => {
-            const price = Number(e.target.value);
-            if (isFinite(price) && price > 0) {
-                // IMPORTANT: Calculate using margin for quick add preview
-                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
-            } else {
-                quickSaleView.innerText = formatKs(0);
-            }
-        };
-
-
-        // --- Settings Actions ---
-        marginInput.oninput = (e) => {
-            state.margin = Number(e.target.value) || 0;
-            saveState();
-            renderProducts();
-            renderCopyPreview();
-            const price = Number(quickPrice.value);
-            if (isFinite(price) && price > 0) {
-                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false})); // Quick add preview only uses margin
-            }
-        };
-
-        currencyInput.oninput = (e) => {
-            state.currency = e.target.value.trim().toUpperCase() || 'KS';
-            // Update all currency display elements
-            quickCurrencySymbol1.innerText = state.currency;
-            modalCurrencySymbol1.innerText = state.currency;
-            modalCurrencySymbol2.innerText = state.currency;
-            if (roundingCurrencySuffix) {
-                 roundingCurrencySuffix.innerText = state.currency; 
-            }
-            
-            saveState();
-            renderProducts();
-            renderCopyPreview();
-        };
-
-        // Listener for the radio button group (handles the rounding state)
-        document.querySelectorAll('input[name="rounding"]').forEach(r => r.onchange = (e) => {
-            state.rounding = e.target.value;
-            saveState();
-            renderProducts();
-            renderCopyPreview();
-        });
 
         // --- Modal Actions (Generic Handlers) ---
         promptCancelBtn.onclick = () => {
@@ -1146,7 +1205,7 @@
         };
     }
     
-    // --- Game Editor Modal Handler ---
+    // --- Game Editor Modal Handler (No change) ---
     function openGameEditorModal(gameId) {
         editingGameId = gameId;
         const isNew = !gameId;
@@ -1164,7 +1223,7 @@
     }
 
 
-    // --- Product Edit Modal Handler ---
+    // --- Product Edit Modal Handler (No change) ---
     function openProductModal(productId) {
         const cat = findCategory(selectedGameId, selectedCategoryId);
         const prod = cat.products.find(x => x.id === productId);
@@ -1195,18 +1254,24 @@
     }
 
 
-    // --- Render Functions ---
+    // --- Render Functions (No change) ---
 
-    function renderAll() {
+    /**
+     * Renders all parts of the UI.
+     * @param {boolean} [save=true] - Whether to save the state after rendering.
+     */
+    function renderAll(save = true) {
         renderWelcomeMessage();
         renderGames();
         renderGameInputPanel();
         renderCenter();
-        renderSettings();
+        // renderSettings(); // Settings already rendered in init() and updated by listeners
         renderProducts();
         renderCopyPreview();
         renderSummary(); 
-        saveState();
+        if (save) {
+            saveState();
+        }
     }
 
     function renderWelcomeMessage() {
@@ -1245,12 +1310,32 @@
 
     function renderGames() {
         gamesBar.innerHTML = '';
+        
+        // --- NEW FILTERING LOGIC ---
+        const searchTerm = gameSearchInput.value.toLowerCase().trim();
+        
+        // Apply filter to state.games
+        const filteredGames = state.games.filter(g => 
+            !searchTerm || g.name.toLowerCase().includes(searchTerm)
+        );
+        // --- END FILTERING LOGIC ---
+        
+        
         if (state.games.length === 0) {
             gamesBar.innerHTML = '<div class="muted">Start by creating a game.</div>';
             return;
         }
 
-        state.games.forEach(g => {
+        // Use filteredGames for rendering
+        const gamesToRender = searchTerm ? filteredGames : state.games;
+
+        if (gamesToRender.length === 0) {
+            // FIX: This line now safely calls the escapeHtml utility
+            gamesBar.innerHTML = `<div class="muted">No games found matching "${escapeHtml(searchTerm)}".</div>`;
+            return;
+        }
+        
+        gamesToRender.forEach(g => {
             const wrapper = document.createElement('div');
             const isActive = g.id === selectedGameId;
             wrapper.className = 'game-tab-container' + (isActive ? ' active' : '');
@@ -1276,7 +1361,10 @@
                 editBtn.className = 'btn small';
                 editBtn.innerHTML = '&#9998;'; 
                 editBtn.title = 'Edit Game Details';
-                editBtn.onclick = () => openGameEditorModal(g.id);
+                editBtn.onclick = (e) => {
+                     e.stopPropagation(); // Prevent tab change when clicking action buttons
+                     openGameEditorModal(g.id);
+                };
                 actions.appendChild(editBtn);
 
                 // Delete Button
@@ -1285,7 +1373,8 @@
                 deleteBtn.style.color = 'inherit';
                 deleteBtn.innerHTML = '&times;'; 
                 deleteBtn.title = 'Delete Game';
-                deleteBtn.onclick = () => {
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent tab change when clicking action buttons
                     showAction(
                         'Confirm Deletion', 
                         `Are you sure you want to delete game "${g.name}" and all its data? This cannot be undone.`, 
@@ -1360,7 +1449,8 @@
                 renameBtn.className = 'btn small';
                 renameBtn.innerHTML = '&#9998;'; 
                 renameBtn.title = 'Rename Category';
-                renameBtn.onclick = () => {
+                renameBtn.onclick = (e) => {
+                     e.stopPropagation(); // Prevent tab change
                      showPrompt(
                         'Rename Category', 
                         'New category name', 
@@ -1370,7 +1460,7 @@
                                 c.name = newName;
                                 saveAndRender();
                             }
-                            promptModal.style.display = 'none'; // Hide modal after callback
+                            promptModal.style.display = 'none'; 
                         }
                     );
                 };
@@ -1382,7 +1472,8 @@
                 deleteBtn.style.color = 'inherit';
                 deleteBtn.innerHTML = '&times;'; 
                 deleteBtn.title = 'Delete Category';
-                deleteBtn.onclick = () => {
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent tab change
                     showAction(
                         'Confirm Deletion', 
                         `Delete category "${c.name}" and all its products?`, 
@@ -1574,7 +1665,7 @@
         copyPreview.innerText = lines.join('\n').trim(); 
     }
 
-    // --- Calculation helpers ---
+        // --- Calculation helpers (No change) ---
 
     /**
      * Calculates the final sale price.
@@ -1612,7 +1703,7 @@
         return `${sign}${formatted} ${state.currency || 'Ks'}`;
     }
 
-    // --- Data helpers ---
+    // --- Data helpers (No change) ---
 
     function findGame(id) {
         return state.games.find(g => g.id === id);
@@ -1628,7 +1719,7 @@
         return 'id_' + Math.random().toString(36).slice(2, 9);
     }
 
-    // --- Persistence ---
+    // --- Persistence (No change) ---
 
     function saveState() {
         state.selectedGameId = selectedGameId;
@@ -1657,10 +1748,10 @@
 
     function saveAndRender() {
         saveState();
-        renderAll();
+        renderAll(false); // Only save once in this function, not twice via renderAll
     }
-
-    // --- Utilities ---
+    
+    // --- Utilities (CRITICAL FIX: Missing function that caused ReferenceError) ---
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
