@@ -655,7 +655,35 @@
              <label class="small">Custom Sale Price (<span id="modalCurrencySymbol2">Ks</span>)</label>
              <input type="number" id="modalCustomPriceInput" min="0" step="1" />
         </div>
-        
+        <!-- USD MODE TOGGLE -->
+<div class="toggle-switch">
+    <input type="checkbox" id="modalDollarToggle" />
+    <label for="modalDollarToggle" class="small">
+        <span class="toggle-slider"></span>
+        <span>Use Dollar ($) Mode</span>
+    </label>
+</div>
+
+<!-- USD SETTINGS -->
+<div id="modalDollarArea" style="display:none; margin-top:12px;">
+    <label class="small">USD Buy Price ($)</label>
+    <input type="number" id="modalUsdPrice" min="0" step="0.01" />
+
+    <label class="small" style="margin-top:8px;">
+        1 Dollar = Custom Unit Rate (<span id="unitCurrency">Ks</span>)
+    </label>
+    <input type="number" id="modalUsdRate" min="1" step="1" value="1" />
+
+    <div style="margin-top:10px;">
+        <div class="small">Converted Sale Price:</div>
+        <strong id="modalUsdSale" style="color:var(--accent);"></strong>
+    </div>
+
+    <div style="margin-top:6px;">
+        <div class="small">Profit:</div>
+        <strong id="modalUsdProfit"></strong>
+    </div>
+</div>
         <div style="margin-top: 15px; border-top: 1px dashed var(--table-divider); padding-top: 10px;">
             <label class="small">Calculated Sale Price (for reference, using margin):</label>
             <strong id="modalCalculatedSalePrice" style="color:var(--accent);"></strong>
@@ -770,7 +798,13 @@
     const modalCurrencySymbol2 = document.getElementById('modalCurrencySymbol2'); 
     const modalCalculatedSalePrice = document.getElementById('modalCalculatedSalePrice'); 
     const modalCustomPriceToggle = document.getElementById('modalCustomPriceToggle'); 
-    const modalCustomPriceInputArea = document.getElementById('modalCustomPriceInputArea'); 
+    const modalCustomPriceInputArea = document.getElementById('modalCustomPriceInputArea'); const modalDollarToggle = document.getElementById('modalDollarToggle');
+const modalDollarArea = document.getElementById('modalDollarArea');
+const modalUsdPrice = document.getElementById('modalUsdPrice');
+const modalUsdRate = document.getElementById('modalUsdRate');
+const modalUsdSale = document.getElementById('modalUsdSale');
+const modalUsdProfit = document.getElementById('modalUsdProfit');
+const unitCurrency = document.getElementById('unitCurrency');
     const modalCustomPriceInput = document.getElementById('modalCustomPriceInput'); 
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalCancelBtn = document.getElementById('modalCancelBtn');
@@ -1085,7 +1119,35 @@
             productEditModal.style.display = 'none';
             editingProductId = null;
         };
-        
+      modalDollarToggle.onchange = (e) => {
+    const on = e.target.checked;
+
+    modalDollarArea.style.display = on ? 'block' : 'none';
+
+    if (on) {
+        // Buy price is USD
+        modalCurrencySymbol1.innerText = '$';
+        modalCurrencySymbol2.innerText = state.currency;
+
+        // ✅ IMPORTANT: set USD price ONLY ONCE
+        if (!modalUsdPrice.value) {
+            modalUsdPrice.value = Number(modalPriceInput.value) || '';
+        }
+
+        calculateDollarSale();
+    } else {
+        // Back to normal mode
+        modalCurrencySymbol1.innerText = state.currency;
+        modalCurrencySymbol2.innerText = state.currency;
+
+        modalUsdSale.innerText = '';
+        modalUsdProfit.innerText = '';
+    }
+};
+
+
+modalUsdPrice.oninput = calculateDollarSale;
+modalUsdRate.oninput = calculateDollarSale;
         // NEW: Live update of calculated sale price when original price changes
         modalPriceInput.oninput = () => {
             const price = Number(modalPriceInput.value);
@@ -1105,39 +1167,64 @@
             }
         };
         
-        modalSaveBtn.onclick = () => {
-            const cat = findCategory(selectedGameId, selectedCategoryId);
-            const prod = cat.products.find(x => x.id === editingProductId);
+     modalSaveBtn.onclick = () => {
+    const cat = findCategory(selectedGameId, selectedCategoryId);
+    const prod = cat.products.find(x => x.id === editingProductId);
 
-            const newName = modalNameInput.value.trim();
-            const newPrice = Number(modalPriceInput.value);
-            const useCustom = modalCustomPriceToggle.checked;
-            const customSale = Number(modalCustomPriceInput.value);
-            
-            // Determine the price to validate against
-            const finalSalePrice = useCustom ? customSale : calculateSale(newPrice, {useCustomPrice: false});
+    const newName = modalNameInput.value.trim();
+    const useCustom = modalCustomPriceToggle.checked;
+    const customSale = Number(modalCustomPriceInput.value);
+    const usdtOn = modalDollarToggle.checked;
 
-            if (!newName) return showAction('Error', 'Product name cannot be empty.', 'Close', () => {actionModal.style.display = 'none';}, false);
-            if (!isFinite(newPrice) || newPrice < 0) return showAction('Error', 'Invalid original price entered.', 'Close', () => {actionModal.style.display = 'none';}, false);
-            if (useCustom && (!isFinite(customSale) || customSale < 0)) return showAction('Error', 'Invalid custom sale price entered.', 'Close', () => {actionModal.style.display = 'none';}, false);
-            
-            // Loss check for Edit Modal (uses finalSalePrice)
-            if (finalSalePrice < newPrice) {
-                 return showAction('Loss Alert!', 
-                    `The final sale price (${formatKs(finalSalePrice)}) is lower than the new original price (${formatKs(newPrice)}), resulting in a loss of ${formatKs(finalSalePrice - newPrice)}. Adjust your price before saving.`, 
-                    'Close', 
-                    () => {actionModal.style.display = 'none';}, false);
-            }
+    let buyPriceToSave = 0; // The price to save to prod.price (USD or Local)
+    let localCostPrice = 0; // The calculated local currency cost (used for profit check)
+    
+    // --- Determine prices and save USDT settings ---
+    if (usdtOn) {
+        const usdBuy = Number(modalUsdPrice.value) || 0;
+        const rate = Number(modalUsdRate.value) || 1;
+        
+        buyPriceToSave = usdBuy; // FIX: Save the USD price as the base price
+        localCostPrice = usdBuy * rate; // The cost in local currency for profit check
+        
+        // Save USDT-specific settings
+        prod.usdtMode = usdtOn;
+        prod.usdtRate = rate;
+    } else {
+        buyPriceToSave = Number(modalPriceInput.value) || 0;
+        localCostPrice = buyPriceToSave;
+        
+        // Disable USDT-specific settings
+        prod.usdtMode = false;
+        prod.usdtRate = 0;
+    }
 
-            prod.name = newName;
-            prod.price = newPrice;
-            prod.useCustomPrice = useCustom;
-            prod.customSalePrice = useCustom ? customSale : 0; // Only save custom price if toggle is on
-            
-            productEditModal.style.display = 'none';
-            editingProductId = null;
-            saveAndRender();
-        };
+    // --- Validation and Loss Check ---
+    if (!newName) return showAction('Error', 'Product name cannot be empty.', 'Close', () => {actionModal.style.display = 'none';}, false);
+    if (!isFinite(buyPriceToSave) || buyPriceToSave < 0) return showAction('Error', `Invalid ${usdtOn ? 'USD' : 'local currency'} buy price entered.`, 'Close', () => {actionModal.style.display = 'none';}, false);
+    if (useCustom && (!isFinite(customSale) || customSale < 0)) return showAction('Error', 'Invalid custom sale price entered.', 'Close', () => {actionModal.style.display = 'none';}, false);
+
+    // Determine the sale price to validate against
+    const finalSalePrice = useCustom ? customSale : calculateSale(localCostPrice, {useCustomPrice: false});
+
+    // Loss check for Edit Modal
+    if (finalSalePrice < localCostPrice) {
+         return showAction('Loss Alert!', 
+            `The final sale price (${formatKs(finalSalePrice)}) is lower than the calculated cost price (${formatKs(localCostPrice)}), resulting in a loss of ${formatKs(finalSalePrice - localCostPrice)}. Adjust your price before saving.`, 
+            'Close', 
+            () => {actionModal.style.display = 'none';}, false);
+    }
+
+    // --- Final Save ---
+    prod.name = newName;
+    prod.price = buyPriceToSave; // FIX: Save USD price if usdtOn, otherwise save local price
+    prod.useCustomPrice = useCustom;
+    prod.customSalePrice = useCustom ? customSale : 0;
+    
+    productEditModal.style.display = 'none';
+    editingProductId = null;
+    saveAndRender();
+};
 
 
         // --- Data Management Actions ---
@@ -1224,35 +1311,67 @@
 
 
     // --- Product Edit Modal Handler (No change) ---
-    function openProductModal(productId) {
-        const cat = findCategory(selectedGameId, selectedCategoryId);
-        const prod = cat.products.find(x => x.id === productId);
+   function openProductModal(productId) {
+    const cat = findCategory(selectedGameId, selectedCategoryId);
+    const prod = cat.products.find(x => x.id === productId);
 
-        if (!prod) return showAction('Error', 'Product not found.', 'Close', () => {actionModal.style.display = 'none';}, false);
+    if (!prod) return showAction('Error', 'Product not found.', 'Close', () => {actionModal.style.display = 'none';}, false);
 
-        editingProductId = productId;
+    editingProductId = productId;
+    
+    // --- Restore USDT Mode Setup ---
+    const usdtOn = !!prod.usdtMode;
+    const rate = usdtOn ? (prod.usdtRate || 1) : 1;
+    let localCostPrice = prod.price;
+    
+    modalProductNameTitle.innerText = prod.name;
+    modalNameInput.value = prod.name;
+    
+    modalDollarToggle.checked = usdtOn;
+    modalDollarArea.style.display = usdtOn ? 'block' : 'none';
+    modalCurrencySymbol1.innerText = usdtOn ? '$' : state.currency;
+    modalCurrencySymbol2.innerText = state.currency;
+    unitCurrency.innerText = state.currency;
+
+    // Sync the input values based on the saved state
+    if (usdtOn) {
+        // prod.price now stores the USD price (e.g., 0.5)
+        const usdBuy = prod.price; 
+        localCostPrice = usdBuy * rate; // Calculated local cost (e.g., 2000)
         
-        modalProductNameTitle.innerText = prod.name;
-        modalNameInput.value = prod.name;
-        modalPriceInput.value = prod.price;
+        modalUsdPrice.value = usdBuy;
+        modalPriceInput.value = localCostPrice; // Shows local cost for reference
+        modalUsdRate.value = rate;
+    } else {
+        // prod.price stores the local price (e.g., 2000)
+        localCostPrice = prod.price; 
         
-        // NEW: Custom Price Setup
-        modalCustomPriceToggle.checked = prod.useCustomPrice;
-        modalCustomPriceInput.value = prod.customSalePrice > 0 ? prod.customSalePrice : '';
-        modalCustomPriceInputArea.style.display = prod.useCustomPrice ? 'block' : 'none';
-
-        // Set currency symbols
-        modalCurrencySymbol1.innerText = state.currency;
-        modalCurrencySymbol2.innerText = state.currency;
-        
-        // Calculate and display the margin-based sale price for reference
-        const calculatedSale = calculateSale(prod.price, {useCustomPrice: false});
-        modalCalculatedSalePrice.innerText = formatKs(calculatedSale);
-
-        productEditModal.style.display = 'flex';
-        modalNameInput.focus();
+        modalUsdPrice.value = '';
+        modalPriceInput.value = localCostPrice;
+        modalUsdRate.value = 1;
     }
+    
+    if (usdtOn) {
+        // Run live calculation
+        calculateDollarSale(); 
+    } else {
+        // Clear USD live calculation fields
+        modalUsdSale.innerText = '';
+        modalUsdProfit.innerText = '';
+    }
+    
+    // Custom Price Setup
+    modalCustomPriceToggle.checked = prod.useCustomPrice;
+    modalCustomPriceInput.value = prod.customSalePrice > 0 ? prod.customSalePrice : '';
+    modalCustomPriceInputArea.style.display = prod.useCustomPrice ? 'block' : 'none';
 
+    // Calculate and display the margin-based sale price for reference
+    const calculatedSale = calculateSale(localCostPrice, {useCustomPrice: false});
+    modalCalculatedSalePrice.innerText = formatKs(calculatedSale);
+
+    productEditModal.style.display = 'flex';
+    modalNameInput.focus();
+}
 
     // --- Render Functions (No change) ---
 
@@ -1514,9 +1633,14 @@
 
         cat.products.forEach(p => {
             const tr = document.createElement('tr');
-            const original = Number(p.price) || 0;
-            const sale = calculateSale(original, p);
-            const profit = sale - original; 
+          const isUsdt = !!p.usdtMode;
+const rate = isUsdt ? (p.usdtRate || 1) : 1;
+
+const originalUsd = Number(p.price) || 0;
+const originalLocal = isUsdt ? originalUsd * rate : originalUsd;
+
+const sale = calculateSale(originalLocal, p);
+const profit = sale - originalLocal;
             const isLoss = profit < 0; // Check for loss
             const isCustom = p.useCustomPrice; // Check if custom price is used
 
@@ -1539,7 +1663,12 @@
 
             tr.innerHTML = `
                 <td><strong>${escapeHtml(p.name)}</strong></td>
-                <td>${formatKs(original)}</td>
+               <td>
+    ${isUsdt
+        ? `$${originalUsd} → ${formatKs(originalLocal)}`
+        : formatKs(originalLocal)
+    }
+</td>
                 <td>${saleDisplay}</td>
                 <td>${profitContent}</td>
                 <td>
@@ -1702,7 +1831,23 @@
         
         return `${sign}${formatted} ${state.currency || 'Ks'}`;
     }
+// --- Dollar Mode Calculation (ADD ONLY) ---
+function calculateDollarSale() {
+    const usdBuy = Number(modalUsdPrice.value);
+    const rate = Number(modalUsdRate.value);
 
+    if (!isFinite(usdBuy) || !isFinite(rate)) return;
+
+    const localBuy = usdBuy * rate;
+
+    const sale = calculateSale(localBuy, { useCustomPrice: false });
+    const profit = sale - localBuy;
+
+    modalUsdSale.innerText = formatKs(localBuy);
+    modalUsdProfit.innerHTML = profit >= 0
+        ? `<span style="color:var(--accent);">${formatKs(profit)}</span>`
+        : `<span class="loss-text">${formatKs(profit)} ⚠ LOSS</span>`;
+}
     // --- Data helpers (No change) ---
 
     function findGame(id) {
