@@ -265,7 +265,9 @@
         }
         .file-controls { display: flex; gap: 8px; margin-top: 10px; }
         .currency-input { width: 60px !important; display: inline-block; margin-right: 8px; }
-
+#copyAllResellerBtn {
+    display: inline-block;
+}
         /* Price Rounding Button-Group Styling */
         #roundingOptions {
             display: flex;
@@ -559,7 +561,10 @@
             </div>
            
         </div>
-
+<!-- Copy all reseller prices -->
+<button id="copyAllResellerBtn" class="btn small">
+    Copy Reseller Prices
+</button>
         <div id="productsArea"> 
             <table> 
                 <thead> 
@@ -584,6 +589,18 @@
             <label class="small">Profit Margin (%)</label> 
             <input type="number" id="marginInput" min="0" step="0.1" /> 
         </div> 
+        <div class="toggle-switch">
+    <input type="checkbox" id="resellerToggle">
+    <label for="resellerToggle" class="small">
+        <span class="toggle-slider"></span>
+        <span>Reseller Price</span>
+    </label>
+</div>
+
+<div id="resellerPercentArea" style="display:none; margin-top:10px;">
+    <label class="small">Reseller Percentage (%)</label>
+    <input type="number" id="resellerPercentInput" min="0" max="100" step="1" value="50">
+</div>
         <div style="margin-top:10px"> 
             <label class="small">Currency Symbol</label> 
             <input type="text" id="currencyInput" class="currency-input" maxlength="10" /> 
@@ -738,7 +755,7 @@
     </div>
 </div>
 
-// --- SCRIPT (JS remains functionally the same, references are still correct) ---
+
 <script>
     // Single-file SPA logic
     const LS_KEY = 'reseller_price_manager_v1';
@@ -780,7 +797,12 @@
 
     // Settings Refs
     const roundingCurrencySuffix = document.getElementById('roundingCurrencySuffix'); 
-
+// Reseller Refs (STEP 3)
+const resellerToggle = document.getElementById('resellerToggle');
+const resellerPercentArea = document.getElementById('resellerPercentArea');
+const resellerPercentInput = document.getElementById('resellerPercentInput');
+// Copy all reseller prices button
+const copyAllResellerBtn = document.getElementById('copyAllResellerBtn');
     // Quick Add Refs
     const quickAddBar = document.getElementById('quickAddBar');
     const quickName = document.getElementById('quickName');
@@ -834,12 +856,16 @@ const unitCurrency = document.getElementById('unitCurrency');
 
 
     // Initialize UI with saved settings
-    function init() {
-        if (!state.games) state.games = [];
-        if (typeof state.margin === 'undefined') state.margin = 15;
-        if (!state.rounding) state.rounding = 'none';
-        if (!state.currency) state.currency = 'Ks';
-        if (!state.theme) state.theme = 'dark'; 
+   function init() {
+    if (!state.games) state.games = [];
+    if (typeof state.margin === 'undefined') state.margin = 15;
+    if (!state.rounding) state.rounding = 'none';
+    if (!state.currency) state.currency = 'Ks';
+    if (!state.theme) state.theme = 'dark';
+
+    // ✅ STEP 2: Reseller defaults (ADD HERE)
+    if (typeof state.resellerEnabled === 'undefined') state.resellerEnabled = false;
+if (typeof state.resellerPercent === 'undefined') state.resellerPercent = 50;
 
         // Migration step: ensure all products have new properties
         state.games.forEach(g => {
@@ -939,58 +965,117 @@ const unitCurrency = document.getElementById('unitCurrency');
 
 
     // **NEW FUNCTION** for core, static input listeners
-    function attachCriticalListeners() {
+   function attachCriticalListeners() {
         
-         // --- Settings Actions ---
-        marginInput.oninput = (e) => {
-            state.margin = Number(e.target.value) || 0;
-            saveState();
-            renderProducts();
-            renderCopyPreview();
-            // Recalculate quick add preview if a price is entered
-            const price = Number(quickPrice.value);
-            if (isFinite(price) && price > 0) {
-                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
-            }
-        };
+    // --- Settings Actions ---
+    marginInput.oninput = (e) => {
+        state.margin = Number(e.target.value) || 0;
+        saveState();
+        renderProducts();
+        renderCopyPreview();
 
-        currencyInput.oninput = (e) => {
-            state.currency = e.target.value.trim().toUpperCase() || 'KS';
-            // Update all currency display elements
-            quickCurrencySymbol1.innerText = state.currency;
-            modalCurrencySymbol1.innerText = state.currency;
-            modalCurrencySymbol2.innerText = state.currency;
-            if (roundingCurrencySuffix) {
-                 roundingCurrencySuffix.innerText = state.currency; 
-            }
-            
-            saveState();
-            renderProducts();
-            renderCopyPreview();
-        };
-        
-        // The quickPrice input listener should correctly calculate the price.
-        quickPrice.oninput = (e) => {
-            const price = Number(e.target.value);
-            if (isFinite(price) && price > 0) {
-                // IMPORTANT: Calculate using margin for quick add preview
-                quickSaleView.innerText = formatKs(calculateSale(price, {useCustomPrice: false}));
-            } else {
-                quickSaleView.innerText = formatKs(0);
-            }
-        };
+        const price = Number(quickPrice.value);
+        if (isFinite(price) && price > 0) {
+            quickSaleView.innerText = formatKs(
+                calculateSale(price, { useCustomPrice: false })
+            );
+        }
+    };
 
-        // Listener for the radio button group (handles the rounding state)
-        document.querySelectorAll('input[name="rounding"]').forEach(r => r.onchange = (e) => {
+    currencyInput.oninput = (e) => {
+        state.currency = e.target.value.trim().toUpperCase() || 'KS';
+
+        quickCurrencySymbol1.innerText = state.currency;
+        modalCurrencySymbol1.innerText = state.currency;
+        modalCurrencySymbol2.innerText = state.currency;
+        if (roundingCurrencySuffix) {
+            roundingCurrencySuffix.innerText = state.currency;
+        }
+
+        saveState();
+        renderProducts();
+        renderCopyPreview();
+    };
+
+    quickPrice.oninput = (e) => {
+        const price = Number(e.target.value);
+        if (isFinite(price) && price > 0) {
+            quickSaleView.innerText = formatKs(
+                calculateSale(price, { useCustomPrice: false })
+            );
+        } else {
+            quickSaleView.innerText = formatKs(0);
+        }
+    };
+
+    document.querySelectorAll('input[name="rounding"]').forEach(r =>
+        r.onchange = (e) => {
             state.rounding = e.target.value;
             saveState();
             renderProducts();
             renderCopyPreview();
-        });
-        
+        }
+    );
+
+    // ✅ STEP 4 — Reseller toggle logic (MUST BE INSIDE)
+    resellerToggle.onchange = (e) => {
+        state.resellerEnabled = e.target.checked;
+        resellerPercentArea.style.display = e.target.checked ? 'block' : 'none';
+        saveAndRender();
+    };
+
+    resellerPercentInput.oninput = (e) => {
+        state.resellerPercent = Number(e.target.value) || 0;
+        saveAndRender();
+    };
+}
+// ✅ Copy ALL reseller prices (from current table)
+copyAllResellerBtn.onclick = () => {
+    if (!state.resellerEnabled) {
+        alert('Enable Reseller Price first');
+        return;
     }
 
+    const rows = document.querySelectorAll('#productsTableBody tr');
 
+    if (!rows.length) {
+        alert('No reseller prices to copy');
+        return;
+    }
+
+    let text = '';
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+
+        // Table structure:
+        // 0 = name
+        // 1 = original
+        // 2 = sale
+        // 3 = profit
+        // 4 = reseller price
+        if (!cells[4]) return;
+
+        const name = cells[0].innerText.trim();
+        const resellerPrice = cells[4].innerText.trim();
+
+        if (resellerPrice) {
+            text += `${name} – ${resellerPrice}\n`;
+        }
+    });
+
+    if (!text.trim()) {
+        alert('No reseller prices to copy');
+        return;
+    }
+
+    navigator.clipboard.writeText(text.trim());
+
+    copyAllResellerBtn.textContent = 'Copied!';
+    setTimeout(() => {
+        copyAllResellerBtn.textContent = 'Copy Reseller Prices';
+    }, 1500);
+};
     // **RENAMED/REFACTORED FUNCTION** for all other button/modal/non-settings listeners
     function attachDynamicListeners() {
         
@@ -1615,6 +1700,19 @@ modalUsdRate.oninput = calculateDollarSale;
 
     function renderProducts() {
         productsTableBody.innerHTML = '';
+        // STEP 5 — Dynamic table header
+const theadRow = document.querySelector('#productsArea thead tr');
+theadRow.innerHTML = `
+    <th>Product Name</th>
+    <th>Original Price</th>
+    <th>Sale Price</th>
+    <th>Profit</th>
+    ${state.resellerEnabled ? `
+        <th>Reseller Price</th>
+        <th>Reseller Profit</th>
+    ` : ''}
+    <th>Actions</th>
+`;
         const cat = findCategory(selectedGameId, selectedCategoryId);
 
         if (!cat) {
@@ -1641,6 +1739,21 @@ const originalLocal = isUsdt ? originalUsd * rate : originalUsd;
 
 const sale = calculateSale(originalLocal, p);
 const profit = sale - originalLocal;
+
+// ✅ REQUIRED
+const resellerPercent = Number(state.resellerPercent) || 0;
+
+let resellerPrice = 0;
+let resellerProfit = 0;
+
+if (state.resellerEnabled) {
+    resellerPrice = sale - (profit * resellerPercent / 100);
+
+    // ✅ round reseller price to nearest 50 Ks
+    resellerPrice = roundNearest50(resellerPrice);
+
+    resellerProfit = resellerPrice - originalLocal;
+}
             const isLoss = profit < 0; // Check for loss
             const isCustom = p.useCustomPrice; // Check if custom price is used
 
@@ -1662,22 +1775,34 @@ const profit = sale - originalLocal;
                 : `<span style="color:var(--accent);">${formatKs(profit)}</span>`;
 
             tr.innerHTML = `
-                <td><strong>${escapeHtml(p.name)}</strong></td>
-               <td>
+<td><strong>${escapeHtml(p.name)}</strong></td>
+
+<td>
     ${isUsdt
         ? `$${originalUsd} → ${formatKs(originalLocal)}`
         : formatKs(originalLocal)
     }
 </td>
-                <td>${saleDisplay}</td>
-                <td>${profitContent}</td>
-                <td>
-                    <div class="product-actions">
-                        <button class="btn small" data-id="${p.id}" data-action="edit">Edit</button>
-                        <button class="btn small" data-id="${p.id}" data-action="duplicate">Duplicate</button>
-                        <button class="btn small danger" data-id="${p.id}" data-action="delete">Delete</button>
-                    </div>
-                </td>`;
+
+<td>${saleDisplay}</td>
+
+<td>${profitContent}</td>
+
+${state.resellerEnabled ? `
+<td>${formatKs(resellerPrice)}</td>
+<td style="color:${resellerProfit >= 0 ? 'var(--accent)' : 'var(--danger)'}">
+    ${formatKs(resellerProfit)}
+</td>
+` : ''}
+
+<td>
+    <div class="product-actions">
+        <button class="btn small" data-id="${p.id}" data-action="edit">Edit</button>
+        <button class="btn small" data-id="${p.id}" data-action="duplicate">Duplicate</button>
+        <button class="btn small danger" data-id="${p.id}" data-action="delete">Delete</button>
+    </div>
+</td>
+`;
             productsTableBody.appendChild(tr);
         });
 
@@ -1746,7 +1871,10 @@ const profit = sale - originalLocal;
         const r = document.getElementById(radioId);
         if (r) r.checked = true;
     }
-
+// Restore reseller UI
+resellerToggle.checked = state.resellerEnabled;
+resellerPercentInput.value = state.resellerPercent;
+resellerPercentArea.style.display = state.resellerEnabled ? 'block' : 'none';
     function renderCopyPreview() {
         const g = findGame(selectedGameId);
         
@@ -1822,15 +1950,21 @@ const profit = sale - originalLocal;
     }
 
     function formatKs(n) {
-        // Use Math.abs for profit calculation display when negative
-        const num = Math.abs(Number(n)); 
-        const formatted = num.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-        
-        // Prepend '-' if the original number was negative
-        const sign = Number(n) < 0 ? '-' : '';
-        
-        return `${sign}${formatted} ${state.currency || 'Ks'}`;
-    }
+    if (!isFinite(n)) return `0 ${state.currency || 'Ks'}`;
+
+    const num = Math.abs(Number(n));
+    const formatted = num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+
+    const sign = Number(n) < 0 ? '-' : '';
+    return `${sign}${formatted} ${state.currency || 'Ks'}`;
+}
+// Round to nearest 50 Ks
+function roundNearest50(n) {
+    return Math.round(n / 50) * 50;
+}
 // --- Dollar Mode Calculation (ADD ONLY) ---
 function calculateDollarSale() {
     const usdBuy = Number(modalUsdPrice.value);
@@ -1905,6 +2039,7 @@ function calculateDollarSale() {
 
     // Start the application
     init();
+    
 </script>
 
 </body>
