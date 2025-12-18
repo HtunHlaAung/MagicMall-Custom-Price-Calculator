@@ -631,7 +631,10 @@
         <div class="file-controls">
              <input type="file" id="importJsonInput" style="display:none;" accept=".json" />
              <button class="btn" id="importJsonBtn">Import JSON</button> 
-             <button class="btn" id="exportJsonBtn">Export JSON</button> 
+             <button class="btn" id="exportJsonBtn">Export JSON</button>
+             <button id="copyExportJsonBtn" class="btn small">
+    Copy Export JSON
+</button>
         </div>
         <hr style="margin:12px 0;border-color:var(--table-divider)" /> 
         <h2>Copy Preview</h2> 
@@ -787,6 +790,7 @@
     const exportJsonBtn = document.getElementById('exportJsonBtn');
     const importJsonBtn = document.getElementById('importJsonBtn');
     const importJsonInput = document.getElementById('importJsonInput');
+    const copyExportJsonBtn = document.getElementById('copyExportJsonBtn');
     const welcomeMessage = document.getElementById('welcomeMessage');
     const modeToggleBtn = document.getElementById('modeToggleBtn');
     const gameDetailsPanel = document.getElementById('gameDetailsPanel');
@@ -1075,6 +1079,20 @@ copyAllResellerBtn.onclick = () => {
     setTimeout(() => {
         copyAllResellerBtn.textContent = 'Copy Reseller Prices';
     }, 1500);
+};
+// Copy Export JSON (Telegram-safe)
+copyExportJsonBtn.onclick = async () => {
+    try {
+        const json = JSON.stringify(state, null, 2);
+        await navigator.clipboard.writeText(json);
+
+        copyExportJsonBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyExportJsonBtn.textContent = 'Copy Export JSON';
+        }, 1500);
+    } catch (e) {
+        alert('Copy failed. Try manual export.');
+    }
 };
     // **RENAMED/REFACTORED FUNCTION** for all other button/modal/non-settings listeners
     function attachDynamicListeners() {
